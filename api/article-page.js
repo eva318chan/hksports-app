@@ -17,8 +17,14 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({
 
 const STANDARD_FOOTER = "摘要由本站重新編寫，圖片版權歸原新聞機構所有。";
 
+// published_at is an instant (Supabase renders timestamptz as UTC, seed rows
+// carry +08:00); display it as Hong Kong wall time, not the raw UTC string
+// (an early-morning HKT article otherwise shows the previous day).
 function fmtDateTime(iso) {
-  return (iso || "").slice(0, 16).replace("T", " ");
+  const d = new Date(iso || "");
+  if (Number.isNaN(d.getTime())) return (iso || "").slice(0, 16).replace("T", " ");
+  // Hong Kong is UTC+8 all year (no DST): shift the instant, then read UTC parts.
+  return new Date(d.getTime() + 8 * 3600 * 1000).toISOString().slice(0, 16).replace("T", " ");
 }
 
 // Inline script from the live article pages, with one change: it fetches

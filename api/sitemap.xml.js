@@ -6,6 +6,15 @@ const { listArticles, siteUrl, setCache } = require("../lib/data");
 
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+// lastmod is the Hong Kong publish date. published_at is an instant (UTC from
+// Supabase), so slicing the raw string would give the previous day for
+// early-morning Hong Kong articles.
+function hktDate(iso) {
+  const d = new Date(iso || "");
+  if (Number.isNaN(d.getTime())) return (iso || "").slice(0, 10);
+  return new Date(d.getTime() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
 module.exports = async (req, res) => {
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
@@ -24,7 +33,7 @@ module.exports = async (req, res) => {
     const base = siteUrl(req);
     const urls = [`  <url><loc>${esc(base)}/</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>`];
     for (const a of all) {
-      urls.push(`  <url><loc>${esc(base)}/a/${esc(a.id)}.html</loc><lastmod>${esc((a.published_at || "").slice(0, 10))}</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>`);
+      urls.push(`  <url><loc>${esc(base)}/a/${esc(a.id)}.html</loc><lastmod>${esc(hktDate(a.published_at))}</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>`);
     }
     setCache(res, 600);
     res.setHeader("Content-Type", "application/xml; charset=utf-8");

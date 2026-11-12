@@ -6,15 +6,18 @@ const { listArticles, siteUrl, setCache } = require("../lib/data");
 
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-// published_at is already a Hong Kong wall time (+08:00); keep its wall time
-// and label +0800 (do NOT convert through UTC, which would shift it 8 hours).
+// published_at is an instant (Supabase renders it as UTC, seed rows carry
+// +08:00); convert to Hong Kong wall time and label +0800. (The old code kept
+// the raw wall time, which from Supabase is the UTC wall time — 8 hours off,
+// and the wrong weekday for early-morning Hong Kong articles.)
 function rfcDate(iso) {
-  const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
-  if (!m) return "";
-  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  const d = new Date(iso || "");
+  if (Number.isNaN(d.getTime())) return "";
+  const h = new Date(d.getTime() + 8 * 3600 * 1000);
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${days[d.getUTCDay()]}, ${m[3]} ${months[+m[2] - 1]} ${m[1]} ${m[4]}:${m[5]}:${m[6]} +0800`;
+  const p = (n) => String(n).padStart(2, "0");
+  return `${days[h.getUTCDay()]}, ${p(h.getUTCDate())} ${months[h.getUTCMonth()]} ${h.getUTCFullYear()} ${p(h.getUTCHours())}:${p(h.getUTCMinutes())}:${p(h.getUTCSeconds())} +0800`;
 }
 
 module.exports = async (req, res) => {

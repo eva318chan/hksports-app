@@ -204,6 +204,11 @@
     loadList();
   }
 
+  // Admin list date is the Hong Kong publish date (published_at is an instant;
+  // the raw string is UTC from Supabase, so slicing it would show the previous
+  // day for early-morning Hong Kong articles).
+  function hktDate(s){ var d = new Date(s || ""); if (isNaN(d.getTime())) return (s || "").slice(0, 10); return new Date(d.getTime() + 8 * 3600 * 1000).toISOString().slice(0, 10); }
+
   function loadList(){
     hideMsg();
     var params = new URLSearchParams({
@@ -218,7 +223,7 @@
       for (var i = 0; i < rows.length; i++){
         var a = rows[i];
         var title = (a.title_zh_hant || a.title_en || a.id || "");
-        html += "<tr><td>" + esc((a.published_at || "").slice(0, 10)) + "</td>"
+        html += "<tr><td>" + esc(hktDate(a.published_at)) + "</td>"
           + "<td>" + esc(title) + "<br><span class='muted'>" + esc(a.id || "") + "</span></td>"
           + "<td>" + esc(a.sport || "") + "</td>"
           + "<td><span class='badge" + (a.status === "draft" ? " draft" : "") + "'>" + (a.status === "draft" ? "草稿" : "已發佈") + "</span></td>"
