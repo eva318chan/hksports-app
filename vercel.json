@@ -1,0 +1,1 @@
+{"$schema":"https://openapi.vercel.sh/vercel.json","regions":["sin1"],"rewrites":[{"destination":"/api/article-page?slug=:slug","source":"/a/:slug.html"},{"destination":"/api/sitemap.xml","source":"/sitemap.xml"},{"destination":"/api/rss.xml","source":"/rss.xml"}]}

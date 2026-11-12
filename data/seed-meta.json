@@ -1,0 +1,7 @@
+{
+  "updated_at": "",
+  "dates": [],
+  "total": 0,
+  "generated_at": "2026-11-13T00:00:00Z",
+  "note": "Empty seed — staging only. The real 1,077 articles load from Supabase once the sports_articles table (B1) and SUPABASE_SERVICE_KEY are in place. Do not treat total 0 as the article count."
+}

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>港體育 | Hong Kong Sports</title>
+<meta name="description" content="香港及中國體育新聞，每小時更新。Hong Kong & China sports news, updated hourly.">
+<meta property="og:site_name" content="港體育 Hong Kong Sports">
+<meta property="og:type" content="website">
+<meta property="og:title" content="港體育 | Hong Kong Sports">
+<meta property="og:description" content="香港及中國體育新聞，每小時更新。Hong Kong & China sports news, updated hourly.">
+<link rel="icon" href="assets/favicon.png">
+<link rel="stylesheet" href="assets/style.css">
+<script>
+function logoFallback(){var b=document.getElementById("brandName");if(b)b.style.display="flex";["logoLight","logoDark"].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display="none";});}
+</script>
+<!-- Vercel Web Analytics: window.va stub + script. This is exactly what
+     @vercel/analytics v2 inject() does in production (it loads
+     /_vercel/insights/script.js); no npm package is needed for a
+     no-build static site. -->
+<script>
+  window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="./" aria-label="home">
+    <img id="logoLight" class="logo-img" src="assets/logo-light.png" alt="港體育 Hong Kong Sports" onerror="logoFallback()">
+    <img id="logoDark" class="logo-img" src="assets/logo-dark.png" alt="港體育 Hong Kong Sports" style="display:none" onerror="logoFallback()">
+    <span class="brand-name" id="brandName" style="display:none"><strong data-i18n="siteName">港體育</strong><small>HONG KONG SPORTS</small></span>
+  </a>
+  <div class="controls">
+    <div class="lang-switch" role="group" aria-label="language">
+      <button data-lang="en">EN</button><button data-lang="zh_hant">繁</button><button data-lang="zh_hans">简</button>
+    </div>
+    <button id="themeBtn" class="icon-btn" aria-label="theme">🌙</button>
+  </div>
+</header>
+
+<main>
+  <section class="toolbar">
+    <input id="search" class="searchbar" data-i18n-ph="search" placeholder="搜尋新聞、標籤、球隊…" autocomplete="off">
+    <div id="sportChips" class="chips"></div>
+    <div id="dateChips" class="chips"></div>
+  </section>
+  <div id="meta" class="meta"></div>
+  <section id="cards" class="cards"></section>
+  <p id="empty" class="empty" hidden data-i18n="noResult"></p>
+  <div class="loadmore"><button id="loadMore" class="btn ghost" data-i18n="loadMore" hidden></button></div>
+</main>
+
+<footer>
+  <p data-i18n="footer"></p>
+  <p style="margin-top:6px">港體育 · Hong Kong Sports</p>
+</footer>
+
+<div id="toast" class="toast"></div>
+<script src="assets/app.js"></script>
+</body>
+</html>

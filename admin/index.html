@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>管理後台 | 港體育</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="../assets/favicon.png">
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  .admin-wrap{max-width:960px;margin:0 auto;padding:24px 16px 80px}
+  .admin-wrap h1{font-size:22px;margin:4px 0 4px}
+  .muted{color:#888;font-size:13px}
+  .admin-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:16px 0}
+  .admin-bar input[type=search]{flex:1;min-width:200px;padding:9px 12px;font-size:15px;border:1px solid #ccc;border-radius:8px;background:var(--card,#fff);color:inherit}
+  .admin-bar select{padding:9px;font-size:15px;border:1px solid #ccc;border-radius:8px;background:var(--card,#fff);color:inherit}
+  .abtn{cursor:pointer}
+  .alist{width:100%;border-collapse:collapse;font-size:14px}
+  .alist th,.alist td{border-bottom:1px solid #e5e5e5;padding:9px 6px;text-align:left;vertical-align:top}
+  .alist th{color:#888;font-weight:600;font-size:12px}
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:12px;background:#e8f5e9;color:#2e7d32}
+  .badge.draft{background:#fff3e0;color:#e65100}
+  .edit-form label{display:block;font-size:13px;color:#888;margin:12px 0 4px}
+  .edit-form input[type=text],.edit-form textarea,.edit-form select{width:100%;padding:9px 10px;font-size:15px;border:1px solid #ccc;border-radius:8px;background:var(--card,#fff);color:inherit;box-sizing:border-box}
+  .edit-form textarea{min-height:70px;resize:vertical}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
+  @media(max-width:640px){.row2{grid-template-columns:1fr}}
+  .hidden{display:none!important}
+  #msg{margin:12px 0;padding:10px 12px;border-radius:8px;background:#e3f2fd;color:#1565c0;font-size:14px}
+  #msg.err{background:#fdecea;color:#b71c1c}
+  .pager{display:flex;gap:10px;align-items:center;margin:16px 0}
+</style>
+<script>try{var _t=localStorage.getItem("hks_theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=_t;}catch(e){}</script>
+<!-- Vercel Web Analytics: window.va stub + script. This is exactly what
+     @vercel/analytics v2 inject() does in production (it loads
+     /_vercel/insights/script.js); no npm package is needed for a
+     no-build static site. -->
+<script>
+  window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="../" aria-label="home">
+    <img class="logo-img" src="../assets/logo-light.png" alt="港體育 Hong Kong Sports">
+    <span class="brand-name"><strong>港體育</strong><small>HONG KONG SPORTS</small></span>
+  </a>
+</header>
+<main class="admin-wrap">
+  <h1>文章管理</h1>
+  <p class="muted">只限獲授權的 Google 帳戶登入。新增文章、改標題、摘要、運動、圖片、狀態（下架 = 草稿），或刪除文章。</p>
+  <div id="msg" class="hidden"></div>
+
+  <div id="setupBox" class="hidden">
+    <p>後台未設定好：伺服器未設定 GOOGLE_CLIENT_ID、ADMIN_EMAILS 或 ADMIN_SESSION_SECRET。請先設定好環境變數再登入。</p>
+  </div>
+
+  <div id="signinBox" class="hidden">
+    <p>請用獲授權的 Google 帳戶登入：</p>
+    <div id="gsiBtn"></div>
+  </div>
+
+  <div id="adminBox" class="hidden">
+    <div class="admin-bar">
+      <span id="whoami" class="muted"></span>
+      <button class="abtn" id="logoutBtn" type="button">登出</button>
+    </div>
+    <div class="admin-bar">
+      <input type="search" id="q" placeholder="搜尋標題 / 摘要 / slug…" aria-label="搜尋">
+      <select id="statusFilter" aria-label="狀態">
+        <option value="">全部狀態</option>
+        <option value="published">已發佈</option>
+        <option value="draft">草稿（已下架）</option>
+      </select>
+      <button class="abtn primary" id="searchBtn" type="button">搜尋</button>
+    </div>
+    <table class="alist">
+      <thead><tr><th style="width:92px">日期</th><th>標題（繁）</th><th style="width:70px">運動</th><th style="width:64px">狀態</th><th style="width:64px"></th></tr></thead>
+      <tbody id="rows"><tr><td colspan="5" class="muted">載入中…</td></tr></tbody>
+    </table>
+    <div class="pager">
+      <button class="abtn" id="prevBtn" type="button">‹ 上一頁</button>
+      <span id="pageInfo" class="muted"></span>
+      <button class="abtn" id="nextBtn" type="button">下一頁 ›</button>
+    </div>
+
+    <div class="admin-bar">
+      <button class="abtn primary" id="newBtn" type="button">＋ 新增文章</button>
+    </div>
+
+    <div id="createBox" class="hidden">
+      <h2 style="font-size:18px;margin:24px 0 4px">新增文章</h2>
+      <p class="muted">標題至少填繁體或英文其中一個。Slug 留空會自動由英文標題產生（只可用細階英文字母、數字、連字號，唔可以用點）。發佈時間留空即係而家。</p>
+      <form class="edit-form" id="createForm">
+        <div class="row2">
+          <div><label>Slug（可留空自動產生）</label><input type="text" id="c_slug" placeholder="例如 20261113-example-news"></div>
+          <div><label>運動</label><input type="text" id="c_sport" placeholder="例如 football"></div>
+          <div><label>標題（繁體）</label><input type="text" id="c_title_zh_hant"></div>
+          <div><label>標題（簡體）</label><input type="text" id="c_title_zh_hans"></div>
+          <div><label>標題（英文）</label><input type="text" id="c_title_en"></div>
+          <div><label>發佈時間（可留空 = 而家）</label><input type="text" id="c_published_at" placeholder="2026-11-13T10:00:00+08:00"></div>
+        </div>
+        <label>摘要（繁體）</label><textarea id="c_summary_zh_hant"></textarea>
+        <label>摘要（簡體）</label><textarea id="c_summary_zh_hans"></textarea>
+        <label>摘要（英文）</label><textarea id="c_summary_en"></textarea>
+        <div class="row2">
+          <div><label>標籤（繁體，逗號分隔）</label><input type="text" id="c_tags_zh_hant"></div>
+          <div><label>標籤（簡體，逗號分隔）</label><input type="text" id="c_tags_zh_hans"></div>
+          <div><label>標籤（英文，逗號分隔）</label><input type="text" id="c_tags_en"></div>
+          <div><label>狀態</label><select id="c_status"><option value="published">已發佈</option><option value="draft">草稿（下架）</option></select></div>
+        </div>
+        <label>來源名稱</label><input type="text" id="c_source_name">
+        <label>來源 URL</label><input type="text" id="c_source_url">
+        <label>圖片 URL</label><input type="text" id="c_image_url">
+        <label>AI 設計圖 prompt（有的話）</label><textarea id="c_image_prompt"></textarea>
+        <div class="admin-bar">
+          <button class="abtn primary" type="submit">建立文章</button>
+          <button class="abtn" type="button" id="cancelCreateBtn">取消</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="editBox" class="hidden">
+      <h2 id="editTitle" style="font-size:18px;margin:24px 0 4px">編輯文章</h2>
+      <p class="muted" id="editSlug"></p>
+      <form class="edit-form" id="editForm">
+        <div class="row2">
+          <div><label>標題（繁體）</label><input type="text" id="f_title_zh_hant"></div>
+          <div><label>標題（簡體）</label><input type="text" id="f_title_zh_hans"></div>
+          <div><label>標題（英文）</label><input type="text" id="f_title_en"></div>
+          <div><label>運動</label><input type="text" id="f_sport"></div>
+        </div>
+        <label>摘要（繁體）</label><textarea id="f_summary_zh_hant"></textarea>
+        <label>摘要（簡體）</label><textarea id="f_summary_zh_hans"></textarea>
+        <label>摘要（英文）</label><textarea id="f_summary_en"></textarea>
+        <div class="row2">
+          <div><label>標籤（繁體，逗號分隔）</label><input type="text" id="f_tags_zh_hant"></div>
+          <div><label>標籤（簡體，逗號分隔）</label><input type="text" id="f_tags_zh_hans"></div>
+          <div><label>標籤（英文，逗號分隔）</label><input type="text" id="f_tags_en"></div>
+          <div><label>狀態</label><select id="f_status"><option value="published">已發佈</option><option value="draft">草稿（下架）</option></select></div>
+        </div>
+        <label>圖片 URL</label><input type="text" id="f_image_url">
+        <label>R2 key（有的話）</label><input type="text" id="f_image_r2_key">
+        <label>圖片說明</label><input type="text" id="f_image_caption">
+        <label>頁尾註解</label><input type="text" id="f_footer_note">
+        <div class="admin-bar">
+          <button class="abtn primary" type="submit">儲存</button>
+          <button class="abtn" type="button" id="cancelEditBtn">取消</button>
+          <button class="abtn" type="button" id="deleteBtn" style="color:#b71c1c">刪除文章…</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</main>
+<script>
+(function(){
+  "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+  var state = { page: 1, limit: 30, total: 0, pages: 1, editing: null };
+  var msgEl = $("msg");
+  function showMsg(text, isErr){
+    msgEl.textContent = text;
+    msgEl.className = isErr ? "err" : "";
+    msgEl.classList.remove("hidden");
+  }
+  function hideMsg(){ msgEl.classList.add("hidden"); }
+  function esc(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+  function api(path, opts){
+    opts = opts || {};
+    opts.headers = Object.assign({ "Content-Type": "application/json" }, opts.headers || {});
+    return fetch(path, opts).then(function(r){
+      return r.json().catch(function(){ return {}; }).then(function(j){
+        if (!r.ok) throw new Error((j && j.error) || ("HTTP " + r.status));
+        return j;
+      });
+    });
+  }
+
+  function loadGsi(clientId){
+    var s = document.createElement("script");
+    s.src = "https://accounts.google.com/gsi/client";
+    s.async = true; s.defer = true;
+    s.onload = function(){
+      google.accounts.id.initialize({
+        client_id: clientId,
+        callback: function(resp){
+          api("/api/admin/auth/callback", { method: "POST", body: JSON.stringify({ credential: resp.credential }) })
+            .then(function(j){ showMsg("已登入：" + j.email); enterAdmin(j.email); })
+            .catch(function(e){ showMsg("登入失敗：" + e.message, true); });
+        }
+      });
+      google.accounts.id.renderButton($("gsiBtn"), { theme: "outline", size: "large", text: "signin_with" });
+    };
+    s.onerror = function(){ showMsg("載入 Google 登入失敗，請檢查網絡後重新整理。", true); };
+    document.head.appendChild(s);
+  }
+
+  function enterAdmin(email){
+    $("signinBox").classList.add("hidden");
+    $("setupBox").classList.add("hidden");
+    $("adminBox").classList.remove("hidden");
+    $("whoami").textContent = email ? ("已登入：" + email) : "";
+    loadList();
+  }
+
+  function loadList(){
+    hideMsg();
+    var params = new URLSearchParams({
+      page: String(state.page), limit: String(state.limit),
+      q: $("q").value.trim(), status: $("statusFilter").value,
+    });
+    api("/api/admin/articles?" + params.toString()).then(function(j){
+      state.total = j.total; state.pages = j.pages;
+      var rows = j.articles || [];
+      var html = "";
+      if (!rows.length) html = '<tr><td colspan="5" class="muted">沒有文章。</td></tr>';
+      for (var i = 0; i < rows.length; i++){
+        var a = rows[i];
+        var title = (a.title_zh_hant || a.title_en || a.id || "");
+        html += "<tr><td>" + esc((a.published_at || "").slice(0, 10)) + "</td>"
+          + "<td>" + esc(title) + "<br><span class='muted'>" + esc(a.id || "") + "</span></td>"
+          + "<td>" + esc(a.sport || "") + "</td>"
+          + "<td><span class='badge" + (a.status === "draft" ? " draft" : "") + "'>" + (a.status === "draft" ? "草稿" : "已發佈") + "</span></td>"
+          + "<td><button class='abtn' type='button' data-edit='" + esc(a.id || "") + "'>編輯</button></td></tr>";
+      }
+      $("rows").innerHTML = html;
+      $("pageInfo").textContent = "第 " + j.page + " / " + j.pages + " 頁，共 " + j.total + " 篇";
+      $("prevBtn").disabled = j.page <= 1;
+      $("nextBtn").disabled = j.page >= j.pages;
+    }).catch(function(e){ showMsg("載入失敗：" + e.message, true); });
+  }
+
+  $("rows").addEventListener("click", function(ev){
+    var b = ev.target.closest("[data-edit]");
+    if (b) openEdit(b.getAttribute("data-edit"));
+  });
+
+  function tagsToText(arr){ return Array.isArray(arr) ? arr.join("，") : ""; }
+  function textToTags(s){
+    return String(s || "").split(/[,，、]/).map(function(t){ return t.trim(); }).filter(Boolean);
+  }
+
+  function openEdit(id){
+    hideMsg();
+    api("/api/admin/articles?id=" + encodeURIComponent(id)).then(function(j){
+      var a = j.article;
+      state.editing = a.id;
+      $("editTitle").textContent = "編輯文章";
+      $("editSlug").textContent = a.id + " · " + (a.published_at || "");
+      $("f_title_zh_hant").value = a.title_zh_hant || "";
+      $("f_title_zh_hans").value = a.title_zh_hans || "";
+      $("f_title_en").value = a.title_en || "";
+      $("f_sport").value = a.sport || "";
+      $("f_summary_zh_hant").value = a.summary_zh_hant || "";
+      $("f_summary_zh_hans").value = a.summary_zh_hans || "";
+      $("f_summary_en").value = a.summary_en || "";
+      $("f_tags_zh_hant").value = tagsToText(a.tags_zh_hant);
+      $("f_tags_zh_hans").value = tagsToText(a.tags_zh_hans);
+      $("f_tags_en").value = tagsToText(a.tags_en);
+      $("f_status").value = a.status || "published";
+      $("f_image_url").value = a.image_url || "";
+      $("f_image_r2_key").value = a.image_r2_key || "";
+      $("f_image_caption").value = a.image_caption || "";
+      $("f_footer_note").value = a.footer_note || "";
+      $("editBox").classList.remove("hidden");
+      $("editBox").scrollIntoView({ behavior: "smooth" });
+    }).catch(function(e){ showMsg("開啟失敗：" + e.message, true); });
+  }
+
+  $("editForm").addEventListener("submit", function(ev){
+    ev.preventDefault();
+    if (!state.editing) return;
+    var body = {
+      title_zh_hant: $("f_title_zh_hant").value,
+      title_zh_hans: $("f_title_zh_hans").value,
+      title_en: $("f_title_en").value,
+      sport: $("f_sport").value,
+      summary_zh_hant: $("f_summary_zh_hant").value,
+      summary_zh_hans: $("f_summary_zh_hans").value,
+      summary_en: $("f_summary_en").value,
+      tags_zh_hant: textToTags($("f_tags_zh_hant").value),
+      tags_zh_hans: textToTags($("f_tags_zh_hans").value),
+      tags_en: textToTags($("f_tags_en").value),
+      status: $("f_status").value,
+      image_url: $("f_image_url").value.trim() || null,
+      image_r2_key: $("f_image_r2_key").value.trim() || null,
+      image_caption: $("f_image_caption").value.trim() || null,
+      footer_note: $("f_footer_note").value.trim() || null,
+    };
+    api("/api/admin/articles?id=" + encodeURIComponent(state.editing), { method: "PATCH", body: JSON.stringify(body) })
+      .then(function(){ showMsg("已儲存。"); loadList(); })
+      .catch(function(e){ showMsg("儲存失敗：" + e.message, true); });
+  });
+
+  $("cancelEditBtn").addEventListener("click", function(){
+    state.editing = null;
+    $("editBox").classList.add("hidden");
+  });
+
+  $("deleteBtn").addEventListener("click", function(){
+    if (!state.editing) return;
+    if (!confirm("確定刪除這篇文章嗎？此操作無法復原。\n" + state.editing)) return;
+    api("/api/admin/articles?id=" + encodeURIComponent(state.editing), { method: "DELETE" })
+      .then(function(){ showMsg("已刪除。"); state.editing = null; $("editBox").classList.add("hidden"); loadList(); })
+      .catch(function(e){ showMsg("刪除失敗：" + e.message, true); });
+  });
+
+  $("newBtn").addEventListener("click", function(){
+    hideMsg();
+    $("createBox").classList.remove("hidden");
+    $("createBox").scrollIntoView({ behavior: "smooth" });
+  });
+
+  $("cancelCreateBtn").addEventListener("click", function(){
+    $("createBox").classList.add("hidden");
+  });
+
+  $("createForm").addEventListener("submit", function(ev){
+    ev.preventDefault();
+    var body = {
+      slug: $("c_slug").value.trim() || undefined,
+      title_zh_hant: $("c_title_zh_hant").value,
+      title_zh_hans: $("c_title_zh_hans").value,
+      title_en: $("c_title_en").value,
+      sport: $("c_sport").value,
+      published_at: $("c_published_at").value.trim() || undefined,
+      summary_zh_hant: $("c_summary_zh_hant").value,
+      summary_zh_hans: $("c_summary_zh_hans").value,
+      summary_en: $("c_summary_en").value,
+      tags_zh_hant: textToTags($("c_tags_zh_hant").value),
+      tags_zh_hans: textToTags($("c_tags_zh_hans").value),
+      tags_en: textToTags($("c_tags_en").value),
+      status: $("c_status").value,
+      source_name: $("c_source_name").value.trim() || null,
+      source_url: $("c_source_url").value.trim() || null,
+      image_url: $("c_image_url").value.trim() || null,
+      image_prompt: $("c_image_prompt").value.trim() || null,
+    };
+    api("/api/admin/articles", { method: "POST", body: JSON.stringify(body) })
+      .then(function(j){
+        showMsg("已建立文章：" + (j.url || ("/a/" + j.article.slug + ".html")));
+        $("createBox").classList.add("hidden");
+        $("createForm").reset();
+        state.page = 1; loadList();
+      })
+      .catch(function(e){ showMsg("建立失敗：" + e.message, true); });
+  });
+
+  $("searchBtn").addEventListener("click", function(){ state.page = 1; loadList(); });
+  $("q").addEventListener("keydown", function(ev){ if (ev.key === "Enter"){ ev.preventDefault(); state.page = 1; loadList(); } });
+  $("statusFilter").addEventListener("change", function(){ state.page = 1; loadList(); });
+  $("prevBtn").addEventListener("click", function(){ if (state.page > 1){ state.page--; loadList(); } });
+  $("nextBtn").addEventListener("click", function(){ if (state.page < state.pages){ state.page++; loadList(); } });
+
+  // Logout is server-side: the session cookie is HttpOnly, so JavaScript
+  // cannot clear it (the old document.cookie line never worked — the
+  // session stayed valid until expiry). POST { action: "logout" } to the
+  // auth callback and the server expires the cookie, then reload to the
+  // sign-in screen. No new function is needed — the existing callback
+  // endpoint handles logout, keeping us under Vercel's 12-function
+  // Hobby limit.
+  $("logoutBtn").addEventListener("click", function(){
+    api("/api/admin/auth/callback", { method: "POST", body: JSON.stringify({ action: "logout" }) })
+      .then(function(){ location.reload(); })
+      .catch(function(e){ showMsg("登出失敗：" + e.message, true); });
+  });
+
+  // Boot: check config, then check whether already signed in.
+  api("/api/admin/config").then(function(cfg){
+    if (!cfg.configured || !cfg.clientId){
+      $("setupBox").classList.remove("hidden");
+      return;
+    }
+    return api("/api/admin/articles?limit=1").then(function(){
+      enterAdmin("");
+    }).catch(function(){
+      $("signinBox").classList.remove("hidden");
+      loadGsi(cfg.clientId);
+    });
+  }).catch(function(e){ showMsg("載入失敗：" + e.message, true); });
+})();
+</script>
+</body>
+</html>
