@@ -290,6 +290,15 @@ captions).
 - **Article pages** replicate the static template (same classes, same header,
   same language-switch script — now fetching `/api/article` instead of the
   daily JSON), with the sports no-hero rule for imageless articles.
+  Share is one button, not a row of ten (2026-11-14, same as the news site):
+  on mobile it opens the system share sheet (`navigator.share` — the phone's
+  own apps, including WeChat/WhatsApp); on desktop it opens a panel with
+  WhatsApp, Facebook, X, Telegram, Weibo (direct share URL) and WeChat (QR
+  code — WeChat has no web share URL), plus copy link. Only the share
+  labels follow the language switcher (the read-original button, footer and
+  source name are still hardcoded Traditional on this site). The homepage
+  list uses the same treatment: one ⤴ button per card, one shared panel for
+  the whole list. All client-side (no new function — the app has 11).
 - **Sitemap/RSS** use the request host (staging host on staging,
   `hksports.hk` in production via `SITE_URL`), so compare slugs, not hosts.
 - **Ingest in seed mode returns 503** (after auth): there is no database to

@@ -33,14 +33,17 @@ const SPORTS = {
 const STR = {
   en:{siteName:"HK-China Sports Express",search:"Search news, tags, teams…",all:"All",latest:"Latest",
       readMore:"Read full story →",copied:"Link copied!",noResult:"No news found. Try another keyword.",
+      shareTitle:"Share this article",shareCopy:"Copy link",shareWechat:"Scan with WeChat to share",
       loadMore:"Load earlier news",updated:"Updated",articles:"articles",loading:"Loading…",
       footer:"Summaries are rewritten by our editors. Photos belong to their original sources."},
   zh_hant:{siteName:"中港體育速報",search:"搜尋新聞、標籤、球隊…",all:"全部",latest:"最新",
       readMore:"閱讀原文 →",copied:"連結已複製！",noResult:"搵唔到相關新聞，試下其他關鍵字。",
+      shareTitle:"分享這篇文章",shareCopy:"複製連結",shareWechat:"用微信掃一掃分享",
       loadMore:"載入更早新聞",updated:"更新於",articles:"則新聞",loading:"載入中…",
       footer:"摘要由本站重新編寫，圖片版權歸原新聞機構所有。"},
   zh_hans:{siteName:"中港体育速报",search:"搜索新闻、标签、球队…",all:"全部",latest:"最新",
       readMore:"阅读原文 →",copied:"链接已复制！",noResult:"找不到相关新闻，试试其他关键字。",
+      shareTitle:"分享这篇文章",shareCopy:"复制链接",shareWechat:"用微信扫一扫分享",
       loadMore:"加载更早新闻",updated:"更新于",articles:"则新闻",loading:"加载中…",
       footer:"摘要由本站重新编写，图片版权归原新闻机构所有。"}
 };
@@ -174,9 +177,7 @@ function cardHTML(a){
         <span class="src">${esc(srcName(a))}</span>
         <span class="actions">
           <a class="abtn primary" href="${esc(srcUrl(a))}" target="_blank" rel="noopener">${esc(t("readMore"))}</a>
-          <button class="abtn" data-share="fb" data-id="${esc(a.id)}">f</button>
-          <button class="abtn" data-share="native" data-id="${esc(a.id)}">⤴</button>
-          <button class="abtn" data-share="copy" data-id="${esc(a.id)}">🔗</button>
+          <button class="abtn" data-share="open" data-id="${esc(a.id)}" aria-label="share">⤴</button>
         </span>
       </div>
     </div>
@@ -193,7 +194,7 @@ function render(){
   $("#meta").textContent = `${TOTAL} ${t("articles")}` + (UPDATED_AT ? ` · ${t("updated")} ${fmtTime(UPDATED_AT)}` : "");
   $("#loadMore").hidden = !(PAGE < PAGES);
   $("#loadMore").textContent = t("loadMore");
-  document.querySelectorAll("[data-share]").forEach(b => b.addEventListener("click", ev => { ev.stopPropagation(); doShare(b.dataset.share, b.dataset.id); }));
+  document.querySelectorAll("[data-share]").forEach(b => b.addEventListener("click", ev => { ev.stopPropagation(); openShare(b.dataset.id); }));
   document.querySelectorAll(".tag").forEach(b => b.addEventListener("click", async () => {
     filter.q = b.dataset.tag; $("#search").value = filter.q; await reload(); render();
     window.scrollTo({top:0, behavior:"smooth"});
@@ -206,19 +207,90 @@ function toast(msg){
   clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("show"), 1800);
 }
 
-function doShare(kind, id){
+/* ---------- share: one button per card ---------- */
+// Mobile (touch UA + navigator.share): the system share sheet — the phone's
+// own apps (WeChat, WhatsApp, ...) appear there. Desktop / no system share:
+// one shared panel, built once and reused for whichever card was tapped,
+// with WhatsApp, Facebook, X, Telegram, Weibo (direct share URL) and WeChat
+// (QR code — WeChat has no web share URL), plus copy link. Same set and
+// same wording as the article page; labels follow the language switcher.
+let sharePanelArticle = null, sharePanelUrl = "", shareQrFor = "";
+function ensureSharePanel(){
+  if (document.getElementById("shareOverlay")) return;
+  const css = document.createElement("style");
+  css.textContent = ".share-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px}"
+    + ".share-overlay[hidden]{display:none}"
+    + ".share-panel{background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);padding:16px;max-width:420px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.3)}"
+    + ".share-panel-head{display:flex;justify-content:space-between;align-items:center;font-weight:600;margin-bottom:10px}"
+    + ".share-panel-head button{background:none;border:0;font-size:16px;cursor:pointer;color:inherit;padding:2px 6px}"
+    + ".share-grid{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}"
+    + ".share-item{padding:8px 14px;border:1px solid var(--border);border-radius:999px;text-decoration:none;color:var(--text);font-size:14px;white-space:nowrap}"
+    + ".share-wechat{text-align:center;margin:4px 0 12px}"
+    + ".share-wechat img{display:block;margin:0 auto}"
+    + ".share-wechat p{font-size:13px;color:var(--muted);margin:8px 0 0}";
+  document.head.appendChild(css);
+  const overlay = document.createElement("div");
+  overlay.id = "shareOverlay";
+  overlay.className = "share-overlay";
+  overlay.hidden = true;
+  overlay.innerHTML = `<div class="share-panel" role="dialog" aria-label="share">`
+    + `<div class="share-panel-head"><span id="sharePanelTitle"></span><button type="button" id="shareClose" aria-label="close">✕</button></div>`
+    + `<div class="share-grid">`
+    + `<a class="share-item" id="shareWa" target="_blank" rel="noopener">WhatsApp</a>`
+    + `<a class="share-item" id="shareFb" target="_blank" rel="noopener">Facebook</a>`
+    + `<a class="share-item" id="shareX" target="_blank" rel="noopener">X</a>`
+    + `<a class="share-item" id="shareTg" target="_blank" rel="noopener">Telegram</a>`
+    + `<a class="share-item" id="shareWb" target="_blank" rel="noopener">微博</a>`
+    + `</div>`
+    + `<div class="share-wechat"><img id="shareQr" alt="WeChat QR code" width="180" height="180" style="display:none"><p id="shareWechatHint"></p></div>`
+    + `<button class="abtn" id="shareCopy" type="button"></button>`
+    + `</div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener("click", ev => { if (ev.target === overlay) closeSharePanel(); });
+  document.getElementById("shareClose").addEventListener("click", closeSharePanel);
+  document.getElementById("shareQr").addEventListener("error", function(){ this.style.display = "none"; });
+  document.getElementById("shareCopy").addEventListener("click", () => {
+    const u = sharePanelUrl; if (!u) return;
+    const done = () => toast(t("copied"));
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(u).then(done, () => { prompt(u, u); });
+    else prompt(u, u);
+  });
+}
+function updateSharePanelLabels(){
+  const t1 = document.getElementById("sharePanelTitle"); if (t1) t1.textContent = t("shareTitle");
+  const cp = document.getElementById("shareCopy"); if (cp) cp.textContent = t("shareCopy");
+  const wh = document.getElementById("shareWechatHint"); if (wh) wh.textContent = t("shareWechat");
+}
+function closeSharePanel(){
+  const ov = document.getElementById("shareOverlay"); if (ov) ov.hidden = true;
+  sharePanelArticle = null;
+}
+document.addEventListener("keydown", ev => { if (ev.key === "Escape") closeSharePanel(); });
+function openShare(id){
   const a = ALL.find(x => x.id === id); if (!a) return;
   const url = articleUrl(a);
   const title = a.title[LANG] || a.title.zh_hant;
-  if (kind === "fb") {
-    window.open("https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(url), "_blank", "width=600,height=540");
-  } else if (kind === "native" && navigator.share) {
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || "");
+  if (isMobile && navigator.share) {
     navigator.share({title, text:(a.summary[LANG]||a.summary.zh_hant), url}).catch(()=>{});
-  } else {
-    (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(
-      () => toast(t("copied")),
-      () => { prompt(url, url); });
+    return;
   }
+  sharePanelArticle = a; sharePanelUrl = url;
+  ensureSharePanel();
+  const set = (elId, href) => { const el = document.getElementById(elId); if (el) el.href = href; };
+  const et = encodeURIComponent(title), eu = encodeURIComponent(url);
+  set("shareWa", "https://wa.me/?text=" + encodeURIComponent(title + " " + url));
+  set("shareFb", "https://www.facebook.com/sharer/sharer.php?u=" + eu);
+  set("shareX", "https://twitter.com/intent/tweet?text=" + et + "&url=" + eu);
+  set("shareTg", "https://t.me/share/url?url=" + eu + "&text=" + et);
+  set("shareWb", "https://service.weibo.com/share/share.php?url=" + eu + "&title=" + et);
+  const qr = document.getElementById("shareQr");
+  if (qr && shareQrFor !== url) {
+    qr.src = "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" + eu;
+    qr.style.display = "block"; shareQrFor = url;
+  }
+  updateSharePanelLabels();
+  document.getElementById("shareOverlay").hidden = false;
 }
 
 let searchTimer;
