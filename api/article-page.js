@@ -100,6 +100,16 @@ function pageHTML(a, base) {
   const caption = a.image_caption
     ? `<p style="font-size:13px;color:#888;margin:8px 0 0">${esc(a.image_caption)}</p>`
     : "";
+  // Extra real photos, [{url, caption}] — rendered below the summary, each
+  // with the same hero treatment as the main image. Absent for most articles.
+  const extras = Array.isArray(a.extra_images) ? a.extra_images : [];
+  const extrasHtml = extras.map((e) => {
+    const u = e && typeof e.url === "string" ? esc(e.url) : "";
+    if (!u) return "";
+    const cap = e.caption
+      ? `<p style="font-size:13px;color:#888;margin:8px 0 0">${esc(e.caption)}</p>` : "";
+    return `<div class="article-hero" style="margin-top:16px"><img src="${u}" alt="" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;noimg&quot;>🏅</div>'"></div>${cap}`;
+  }).join("\n");
   const ogImage = a.image_url ? `<meta property="og:image" content="${esc(a.image_url)}">\n` : "";
   const footer = esc(a.footer_note || STANDARD_FOOTER);
   // Sports source is a plain string; source_url is a separate field.
@@ -148,7 +158,7 @@ ${img}
 ${caption}  <div class="card-top"><span class="sport-tag">${esc(a.sport)}</span><span>${esc(fmtDateTime(a.published_at))}</span><span> · ${srcName}</span></div>
   <h1 class="article-title">${esc(zhTitle)}</h1>
   <p class="lead article-summary">${esc(zhSummary)}</p>
-  <div class="tags article-tags">${tags}</div>
+${extrasHtml}  <div class="tags article-tags">${tags}</div>
   <div style="margin:20px 0;display:flex;gap:10px;flex-wrap:wrap">
     <a class="abtn primary" style="font-size:15px;padding:10px 22px" href="${srcUrl}" target="_blank" rel="noopener">閱讀原文 →</a>
     <a class="abtn" style="font-size:15px;padding:10px 18px" href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}" target="_blank" rel="noopener">分享到 Facebook</a>

@@ -126,7 +126,11 @@ one of the 22 sport keys and defaults to `others`. Creating with a slug that
 already exists returns 409 and never overwrites — use PATCH to update. PATCH
 accepts the same fields (plus `image_r2_key`, `image_caption`,
 `footer_note`); omitted fields are left unchanged. `image_prompt` is stored
-from day one (the column is in the initial migration).
+from day one (the column is in the initial migration). `extra_images` is an
+optional array of up to 10 `{url, caption}` objects for additional real photos
+(the hero image stays in `image_url` / `image_caption`); it needs migration
+`supabase/migrations/002_extra_images.sql` applied in the Supabase SQL Editor
+first, and renders below the summary on the article page.
 
 **The automated pipeline keeps using `POST /api/ingest` with
 `INGEST_SECRET`.** The cron cannot hold a Google SSO session, so the admin
@@ -324,4 +328,5 @@ INGEST_SECRET=test-secret node scripts/serve.mjs 3100
 | `data/seed.json`, `data/seed-meta.json` | migration snapshot (regenerate with `scripts/migrate.mjs`; empty until the seed phase) |
 | `scripts/migrate.mjs`, `scripts/serve.mjs` | migration + local dev server |
 | `supabase/migrations/001_sports_articles.sql` | DB schema + RLS + `sports_meta()` |
+| `supabase/migrations/002_extra_images.sql` | adds `extra_images` jsonb to `sports_articles` (multi-photo articles) |
 | `vercel.json` | rewrites `/a/:slug.html`, `/sitemap.xml`, `/rss.xml`; functions region `sin1` |
