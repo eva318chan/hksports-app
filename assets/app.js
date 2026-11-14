@@ -160,7 +160,7 @@ function cardHTML(a){
   // noimg placeholder). A failed image load removes the whole thumb.
   const sportName = esc((SPORTS[a.sport]||SPORTS.others)[LANG]);
   const img = a.image_url
-    ? `<a class="thumb" href="a/${esc(a.id)}.html"><img src="${esc(a.image_url)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest('.thumb').remove()"><span class="thumb-badge">${sportName}</span></a>`
+    ? `<a class="thumb" href="a/${esc(a.id)}.html"><img src="${esc(a.image_url)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest('.thumb').remove()"></a>`
     : ``;
   const tags = (a.tags[LANG] || a.tags.zh_hant || []).map(g => `<button class="tag" data-tag="${esc(g)}">#${esc(g)}</button>`).join("");
   return `<article class="card" id="a-${esc(a.id)}">

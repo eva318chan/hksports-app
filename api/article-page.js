@@ -94,9 +94,8 @@ function pageHTML(a, base) {
   const url = `${base}/a/${a.id}.html`;
   // Sports rule: no image => NO hero div at all (verified on the live site:
   // imageless article pages contain no article-hero and no noimg).
-  const sportName = esc(SPORTS_ZH[a.sport] || "體育");
   const img = a.image_url
-    ? `<div class="article-hero"><img src="${esc(a.image_url)}" alt="" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;noimg&quot;>🏅</div>'"><span class="hero-badge">${sportName}</span></div>`
+    ? `<div class="article-hero"><img src="${esc(a.image_url)}" alt="" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;noimg&quot;>🏅</div>'"></div>`
     : "";
   const caption = a.image_caption
     ? `<p style="font-size:13px;color:#888;margin:8px 0 0">${esc(a.image_caption)}</p>`
