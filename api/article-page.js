@@ -6,8 +6,8 @@
 // header, same language-switch script (adapted to fetch /api/article).
 // Sports rule (2026-10-30): when an article has NO image, the whole
 // article-hero div is omitted — never a noimg placeholder (unlike the news
-// site). With an image, a failed load replaces the <img> with a noimg div,
-// exactly like the live static pages.
+// site). With an image, a failed load removes the whole hero div
+// (2026-11-14: no 🏅 medal placeholder anywhere, both sites).
 "use strict";
 const { getArticle, siteUrl, setCache } = require("../lib/data");
 
@@ -95,7 +95,7 @@ function pageHTML(a, base) {
   // Sports rule: no image => NO hero div at all (verified on the live site:
   // imageless article pages contain no article-hero and no noimg).
   const img = a.image_url
-    ? `<div class="article-hero"><img src="${esc(a.image_url)}" alt="" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;noimg&quot;>🏅</div>'"></div>`
+    ? `<div class="article-hero"><img src="${esc(a.image_url)}" alt="" referrerpolicy="no-referrer" onerror="this.closest('.article-hero').remove()"></div>`
     : "";
   const caption = a.image_caption
     ? `<p style="font-size:13px;color:#888;margin:8px 0 0">${esc(a.image_caption)}</p>`
@@ -108,7 +108,7 @@ function pageHTML(a, base) {
     if (!u) return "";
     const cap = e.caption
       ? `<p style="font-size:13px;color:#888;margin:8px 0 0">${esc(e.caption)}</p>` : "";
-    return `<div class="article-hero" style="margin-top:16px"><img src="${u}" alt="" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;noimg&quot;>🏅</div>'"></div>${cap}`;
+    return `<div class="article-hero" style="margin-top:16px"><img src="${u}" alt="" referrerpolicy="no-referrer" onerror="this.closest('.article-hero').remove()"></div>${cap}`;
   }).join("\n");
   const ogImage = a.image_url ? `<meta property="og:image" content="${esc(a.image_url)}">\n` : "";
   const footer = esc(a.footer_note || STANDARD_FOOTER);
