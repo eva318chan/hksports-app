@@ -15,6 +15,9 @@
   .admin-bar input[type=search]{flex:1;min-width:200px;padding:9px 12px;font-size:15px;border:1px solid #ccc;border-radius:8px;background:var(--card,#fff);color:inherit}
   .admin-bar select{padding:9px;font-size:15px;border:1px solid #ccc;border-radius:8px;background:var(--card,#fff);color:inherit}
   .abtn{cursor:pointer}
+  .admin-nav{margin-left:auto;display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+  .admin-nav a{padding:8px 12px;border-radius:8px;font-size:14px;color:inherit;text-decoration:none;white-space:nowrap}
+  .admin-nav a.active{background:#e3f2fd;color:#1565c0;font-weight:700}
   .alist{width:100%;border-collapse:collapse;font-size:14px}
   .alist th,.alist td{border-bottom:1px solid #e5e5e5;padding:9px 6px;text-align:left;vertical-align:top}
   .alist th{color:#888;font-weight:600;font-size:12px}
@@ -46,6 +49,10 @@
     <img class="logo-img" src="../assets/logo-light.png" alt="港體育 Hong Kong Sports">
     <span class="brand-name"><strong>港體育</strong><small>HONG KONG SPORTS</small></span>
   </a>
+  <nav class="admin-nav" aria-label="管理選單">
+    <a href="/admin/" class="active">文章管理</a>
+    <a href="/admin/batch/">Batch images（批量生圖）</a>
+  </nav>
 </header>
 <main class="admin-wrap">
   <h1>文章管理</h1>

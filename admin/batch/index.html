@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Batch images（批量生圖）| 管理後台</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="../../assets/favicon.png">
+<link rel="stylesheet" href="../../assets/style.css">
+<style>
+  .admin-wrap{max-width:960px;margin:0 auto;padding:24px 16px 80px}
+  .admin-wrap h1{font-size:22px;margin:4px 0 4px}
+  .muted{color:#888;font-size:13px}
+  .admin-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:16px 0}
+  .abtn{cursor:pointer}
+  .alist{width:100%;border-collapse:collapse;font-size:14px}
+  .alist th,.alist td{border-bottom:1px solid #e5e5e5;padding:9px 6px;text-align:left;vertical-align:top}
+  .alist th{color:#888;font-weight:600;font-size:12px}
+  .hidden{display:none!important}
+  #msg, #bStatus{margin:12px 0;padding:10px 12px;border-radius:8px;background:#e3f2fd;color:#1565c0;font-size:14px}
+  #msg.err, #bStatus.err{background:#fdecea;color:#b71c1c}
+  #bStatus.ok{background:#e8f5e9;color:#2e7d32}
+  /* Admin nav: 文章管理 / Batch images. Shown in the topbar on both admin
+     pages so the user can switch between them with one click. */
+  .admin-nav{margin-left:auto;display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+  .admin-nav a{padding:8px 12px;border-radius:8px;font-size:14px;color:inherit;text-decoration:none;white-space:nowrap}
+  .admin-nav a.active{background:#e3f2fd;color:#1565c0;font-weight:700}
+  /* Batch images (Gemini Batch API, POC) */
+  .batch-sec h2{font-size:18px;margin:24px 0 4px}
+  .batch-sec h3{font-size:15px;margin:20px 0 4px}
+  .batch-filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0}
+  .batch-filters input[type=date],.batch-filters select{padding:9px;font-size:15px;border:1px solid #ccc;border-radius:8px;background:var(--card,#fff);color:inherit}
+  .batch-row{display:flex;gap:10px;align-items:flex-start;border-bottom:1px solid #e5e5e5;padding:10px 0}
+  .batch-row input[type=checkbox]{margin-top:4px;flex:none}
+  .batch-row .bmeta{flex:1;min-width:0}
+  .batch-row .bcat{font-size:12px;color:#888;margin-bottom:2px}
+  .batch-row .btitle{font-size:14px;font-weight:600}
+  .prompt-label{display:block;font-size:12px;color:#888;margin:8px 0 3px}
+  .batch-row textarea{width:100%;min-height:56px;padding:8px 10px;font-size:13px;border:1px solid #ccc;border-radius:8px;background:var(--card,#fff);color:inherit;box-sizing:border-box;resize:vertical}
+  .model-pick{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0}
+  .model-pick label{display:flex;gap:6px;align-items:center;border:1px solid #ccc;border-radius:8px;padding:8px 10px;font-size:13px;cursor:pointer}
+  .model-pick label input{margin:0}
+  .review-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin:12px 0}
+  .review-card{border:1px solid #e5e5e5;border-radius:10px;overflow:hidden}
+  .review-card img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#f5f5f5}
+  .review-card .rbody{padding:10px}
+  .review-card .rtitle{font-size:13px;font-weight:600;margin-bottom:8px}
+  .review-card .rbtns{display:flex;gap:8px}
+  /* Expandable batch items: per-article status + per-item error, shown
+     under a batch row when the user clicks 詳情. */
+  .bItems{margin:2px 0 12px;padding:10px 12px;border:1px solid #e5e5e5;border-radius:8px}
+  /* Gemini credit tracker (user request 2026-11-13): estimated remaining
+     credit + how many Lite images it can still buy. Amber below 200
+     images remaining, red below 50. */
+  .credit-box{border:1px solid #e5e5e5;border-radius:10px;padding:14px 16px;margin:12px 0}
+  .credit-big{font-size:28px;font-weight:700}
+  .credit-sub{font-size:14px;color:#555;margin-top:2px}
+  .credit-grid{display:flex;gap:24px;flex-wrap:wrap;margin-top:10px}
+  .credit-grid .clabel{font-size:12px;color:#888}
+  .credit-grid .cval{font-size:16px;font-weight:600}
+  .credit-warn-amber{border-color:#f9a825;background:#fff8e1}
+  .credit-warn-red{border-color:#c62828;background:#fdecea}
+  .credit-warn-red .credit-big{color:#b71c1c}
+  .credit-form{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
+  .credit-form input[type=number],.credit-form input[type=date],.credit-form input[type=text]{padding:9px;font-size:15px;border:1px solid #ccc;border-radius:8px;background:var(--card,#fff);color:inherit}
+</style>
+<script>try{var _t=localStorage.getItem("hks_theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=_t;}catch(e){}</script>
+<!-- Vercel Web Analytics: window.va stub + script. This is exactly what
+     @vercel/analytics v2 inject() does in production (it loads
+     /_vercel/insights/script.js); no npm package is needed for a
+     no-build static site. -->
+<script>
+  window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="../../" aria-label="home">
+    <img class="logo-img" src="../../assets/logo-light.png" alt="港體育 Hong Kong Sports">
+    <span class="brand-name"><strong>港體育</strong><small>HONG KONG SPORTS</small></span>
+  </a>
+  <nav class="admin-nav" aria-label="管理選單">
+    <a href="/admin/">文章管理</a>
+    <a href="/admin/batch/" class="active">Batch images（批量生圖）</a>
+  </nav>
+</header>
+<main class="admin-wrap">
+  <h1>Batch images（批量生圖）</h1>
+  <p class="muted">用 Gemini Batch API 批量生成 AI 設計圖片。生圖前先睇清楚每篇嘅 prompt，改好先㩒 Generate。建議每批 10 篇左右；揀多過 10 篇會彈 warning，確認後照樣可以提交。生成要等一段時間（最長 24 小時），Check 唔係即刻有圖。批咗嘅圖先會上 R2 並連結返原文。</p>
+  <p class="muted">⚠️ 自動流程暫停（2026-11-14 江仔決定）：而家只做手動測試（揀文 → Generate → Check → 睇圖 → Approve），自動交 batch 同自動批准未接通，等測試滿意先開。</p>
+  <div id="msg" class="hidden"></div>
+
+  <div id="setupBox" class="hidden">
+    <p>後台未設定好：伺服器未設定 GOOGLE_CLIENT_ID、ADMIN_EMAILS 或 ADMIN_SESSION_SECRET。請先設定好環境變數再登入。</p>
+  </div>
+
+  <div id="signinBox" class="hidden">
+    <p>請用獲授權的 Google 帳戶登入：</p>
+    <div id="gsiBtn"></div>
+  </div>
+
+  <div id="batchBox" class="hidden">
+    <div class="admin-bar">
+      <span id="whoami" class="muted"></span>
+      <button class="abtn" id="logoutBtn" type="button">登出</button>
+    </div>
+    <!-- Status for every batch action (Generate / Check / Approve / Reject /
+         prompt save). Every action writes here — success in green, error in
+         red — so a click never silently does nothing (2026-11-13 fix: the
+         old page showed no error when Generate failed). -->
+    <div id="bStatus" class="hidden"></div>
+    <div id="batchStats" class="muted">載入用量統計中…</div>
+
+    <!-- Gemini credit tracker (user request 2026-11-13): estimated
+         remaining credit in USD + how many Lite images it can still buy,
+         so the user knows when to top up. Numbers are an estimate — see
+         the note inside the box. Filled in by loadCredit() after sign-in. -->
+    <div id="creditBox" class="credit-box">
+      <div class="muted">Gemini 增值結餘（估算）載入中…</div>
+    </div>
+
+    <section class="batch-sec">
+      <h2>揀體育新聞</h2>
+      <div class="batch-filters">
+        <label>由 <input type="date" id="bFrom"></label>
+        <label>至 <input type="date" id="bTo"></label>
+        <button class="abtn" id="bLoadBtn" type="button">載入體育新聞</button>
+        <span class="muted" id="bCount"></span>
+      </div>
+      <div id="bList"><p class="muted">載入中…</p></div>
+
+      <h2>揀模型</h2>
+      <p class="muted">模型清單預先顯示（每個模型嘅 batch 價錢），預設揀 Lite（最平，$0.0168 USD / 張），可以改。生成會收費（batch 價，見上面用量統計）。</p>
+      <div class="model-pick" id="bModels"><span class="muted">載入模型價錢中…</span></div>
+      <div class="admin-bar">
+        <button class="abtn primary" id="bGenBtn" type="button">Generate（生成）</button>
+      </div>
+
+      <h2>Batch 列表</h2>
+      <p class="muted">撳「詳情」睇每篇嘅狀態同失敗原因；撳 Check 查 batch 狀態。</p>
+      <div id="bBatches"><p class="muted">未有 batch。</p></div>
+
+      <h2>待審核（已生成，等你批）</h2>
+      <div id="bReview"><p class="muted">未有已生成嘅圖。Check 咗 batch 之後，有圖會喺呢度出現。</p></div>
+
+      <h2>操作記錄 (Log)</h2>
+      <p class="muted">每次 Generate、Check、批准、拒絕都會記低（成功同失敗都記）。最新 50 條，新至舊。</p>
+      <div class="admin-bar">
+        <button class="abtn" id="bLogRefreshBtn" type="button">重新整理記錄</button>
+      </div>
+      <div id="bLog"><p class="muted">載入記錄中…</p></div>
+    </section>
+  </div>
+</main>
+<script>
+(function(){
+  "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+  var msgEl = $("msg");
+  function showMsg(text, isErr){
+    msgEl.textContent = text;
+    msgEl.className = isErr ? "err" : "";
+    msgEl.classList.remove("hidden");
+  }
+  function hideMsg(){ msgEl.classList.add("hidden"); }
+  // Batch status box: every batch action writes here (success green, error
+  // red), so a click never silently does nothing. It never scrolls the
+  // page — the result is also shown inline where the user clicked.
+  var statusEl = $("bStatus");
+  function batchMsg(text, isErr){
+    statusEl.textContent = text;
+    statusEl.className = isErr ? "err" : "ok";
+    statusEl.classList.remove("hidden");
+  }
+  function esc(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+  function api(path, opts){
+    opts = opts || {};
+    opts.headers = Object.assign({ "Content-Type": "application/json" }, opts.headers || {});
+    return fetch(path, opts).then(function(r){
+      return r.json().catch(function(){ return {}; }).then(function(j){
+        if (!r.ok) throw new Error((j && j.error) || ("HTTP " + r.status));
+        return j;
+      });
+    });
+  }
+
+  function loadGsi(clientId){
+    var s = document.createElement("script");
+    s.src = "https://accounts.google.com/gsi/client";
+    s.async = true; s.defer = true;
+    s.onload = function(){
+      google.accounts.id.initialize({
+        client_id: clientId,
+        callback: function(resp){
+          api("/api/admin/auth/callback", { method: "POST", body: JSON.stringify({ credential: resp.credential }) })
+            .then(function(j){ showMsg("已登入：" + j.email); enterBatch(j.email); })
+            .catch(function(e){ showMsg("登入失敗：" + e.message, true); });
+        }
+      });
+      google.accounts.id.renderButton($("gsiBtn"), { theme: "outline", size: "large", text: "signin_with" });
+    };
+    s.onerror = function(){ showMsg("載入 Google 登入失敗，請檢查網絡後重新整理。", true); };
+    document.head.appendChild(s);
+  }
+
+  function enterBatch(email){
+    $("signinBox").classList.add("hidden");
+    $("setupBox").classList.add("hidden");
+    $("batchBox").classList.remove("hidden");
+    $("whoami").textContent = email ? ("已登入：" + email) : "";
+    initBatchUI();
+  }
+
+  // Batch list date is the Hong Kong publish date (published_at is an
+  // instant; the raw string is UTC from Supabase, so slicing it would show
+  // the previous day for early-morning Hong Kong articles).
+  function hktDate(s){ var d = new Date(s || ""); if (isNaN(d.getTime())) return (s || "").slice(0, 10); return new Date(d.getTime() + 8 * 3600 * 1000).toISOString().slice(0, 10); }
+
+  // Logout is server-side: the session cookie is HttpOnly, so JavaScript
+  // cannot clear it. POST { action: "logout" } to the auth callback and the
+  // server expires the cookie, then reload to the sign-in screen.
+  $("logoutBtn").addEventListener("click", function(){
+    api("/api/admin/auth/callback", { method: "POST", body: JSON.stringify({ action: "logout" }) })
+      .then(function(){ location.reload(); })
+      .catch(function(e){ showMsg("登出失敗：" + e.message, true); });
+  });
+
+  // ---- Batch images (Gemini Batch API, POC) ----
+  // Single-click Generate: the model picker is shown by default (Lite
+  // pre-selected — the cheapest model, user decision 2026-11-13), so one
+  // click on Generate submits. Manual flow: the user controls every step.
+  // The fully automatic flow (step 5F + 5-minute cron) also writes its
+  // batches here, so this page shows auto batches and their spend too.
+  var batchState = { articles: [], batches: [], stats: null, model: "" };
+  // True while any Check is in flight (manual or auto) — the 1-minute
+  // auto-check timer never fires while a manual Check is running.
+  var batchCheckRunning = false;
+  var AUTO_CHECK_MS = 60000; // auto-check pending batches every 1 minute
+  var BATCH_MAX = 10; // suggestion only — the endpoint no longer hard-rejects above this
+  var DEFAULT_MODEL = "gemini-3.1-flash-lite-image";
+
+  function batchApi(action, extra){
+    var body = Object.assign({ action: action }, extra || {});
+    return api("/api/admin/batch", { method: "POST", body: JSON.stringify(body) });
+  }
+
+  function hktTodayStr(){
+    return new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+  }
+
+  function fmtUsd(n){
+    if (n == null || isNaN(n)) return "待確認";
+    return "$" + Number(n).toFixed(4) + " USD";
+  }
+
+  function batchArticleBySlug(slug){
+    for (var i = 0; i < batchState.articles.length; i++){
+      if (batchState.articles[i].slug === slug) return batchState.articles[i];
+    }
+    return null;
+  }
+
+  function renderBatchStats(){
+    var el = $("batchStats");
+    var s = batchState.stats;
+    if (!s){ el.textContent = "用量統計載入失敗。"; return; }
+    var html = "";
+    if (s.tablesMissing) html += "<p>⚠️ batch 資料表未建立（sql/001-batch-tables.sql 未跑）。以下只係模型價錢，未計用量。</p>";
+    html += "<table class=\"alist\"><thead><tr><th>模型</th><th>已生成</th><th>已批准</th><th>每張 batch 價</th><th>花費</th></tr></thead><tbody>";
+    s.stats.forEach(function(row){
+      html += "<tr><td>" + esc(row.display_name || row.model) + "</td><td>" + row.generated + "</td><td>" + row.approved + "</td><td>" + fmtUsd(row.batch_price_usd) + "</td><td>" + fmtUsd(row.cost_usd) + "</td></tr>";
+    });
+    html += "</tbody></table>";
+    html += "<p>總計：已生成 " + s.total.generated + " 張（已批准 " + s.total.approved + " 張），花費 " + fmtUsd(s.total.cost_usd) + "。"
+      + (s.price_source === "fallback" ? " 價錢係內置參考價（資料表未建立）。" : "")
+      + "「已生成」包括已批准同已拒絕嘅圖——成功出圖就要計錢。</p>";
+    el.innerHTML = html;
+  }
+
+  function renderModels(){
+    var el = $("bModels");
+    var models = batchState.stats && batchState.stats.models ? batchState.stats.models : [];
+    if (!models.length){ el.innerHTML = "<span class=\"muted\">模型價錢載入失敗。</span>"; return; }
+    // Default to Lite (user decision 2026-11-13 — cheapest); fall back to
+    // the first model if Lite is not in the list.
+    if (!batchState.model){
+      var hasDefault = false;
+      for (var k = 0; k < models.length; k++) if (models[k].model === DEFAULT_MODEL) hasDefault = true;
+      batchState.model = hasDefault ? DEFAULT_MODEL : models[0].model;
+    }
+    el.innerHTML = models.map(function(m){
+      var checked = m.model === batchState.model ? " checked" : "";
+      // Lite's label is fixed so it always reads exactly
+      // "Lite (Nano Banana 2 Lite) — $0.0168 USD / 張（batch 價）".
+      var label = m.model === "gemini-3.1-flash-lite-image" ? "Lite (Nano Banana 2 Lite)" : (m.display_name || m.model);
+      return "<label><input type=\"radio\" name=\"bModel\" value=\"" + esc(m.model) + "\"" + checked + "> "
+        + esc(label) + " — " + fmtUsd(m.batch_price_usd) + " / 張（batch 價）</label>";
+    }).join("");
+    var radios = el.querySelectorAll("input[name=bModel]");
+    for (var i = 0; i < radios.length; i++){
+      radios[i].addEventListener("change", function(ev){ batchState.model = ev.target.value; });
+    }
+  }
+
+  function loadBatchStats(){
+    return batchApi("stats").then(function(s){
+      batchState.stats = s;
+      renderBatchStats();
+      renderModels();
+    }).catch(function(e){
+      $("batchStats").textContent = "用量統計載入失敗：" + e.message;
+      $("bModels").innerHTML = "<span class=\"muted\">模型價錢載入失敗。</span>";
+    });
+  }
+
+  // ---- Gemini credit tracker (user request 2026-11-13) ----
+  // Estimated remaining credit in USD + how many Lite images it can
+  // still buy, so the user knows when to top up. The server
+  // (credit-summary) supplies the top-up ledger, the anchor constants
+  // and the current batch spend; today's USD->HKD rate is fetched here
+  // from Frankfurter (free, no key) and the arithmetic is done here.
+  // Formula (same as the server's creditEstimate — keep them in sync):
+  //   extraSpendUSD = max(0, batchTotalSpendUSD − anchor.batchSpendUSD)
+  //   totalUsedHKD = anchor.usageHKD + extraSpendUSD × rate
+  //   remainingHKD = topupsTotalHKD − totalUsedHKD
+  //   remainingUSD = remainingHKD / rate
+  //   imagesRemaining = floor(remainingUSD / liteBatchPriceUSD)
+  // The US$1.60 batch spend at the anchor is already inside the HK$16.79
+  // anchor usage, so it is NOT subtracted again. Estimate only: direct
+  // generations outside the batch flow are not counted, so the true
+  // Google balance may be slightly lower.
+  var creditState = { summary: null, rate: null, rateDate: null, rateFallback: false };
+  var CREDIT_FALLBACK_RATE = 7.85;
+
+  function fmtHkd(n){
+    if (n == null || isNaN(n)) return "待確認";
+    return "HK$" + Number(n).toFixed(2);
+  }
+
+  function fmtUsd2(n){
+    if (n == null || isNaN(n)) return "待確認";
+    return "$" + Number(n).toFixed(2) + " USD";
+  }
+
+  function creditNumbers(){
+    var s = creditState.summary;
+    if (!s) return null;
+    var rate = creditState.rate || CREDIT_FALLBACK_RATE;
+    var extraSpendUSD = Math.max(0, Number(s.batchTotalSpendUSD || 0) - Number(s.anchor.batchSpendUSD || 0));
+    var totalUsedHKD = Number(s.anchor.usageHKD || 0) + extraSpendUSD * rate;
+    var remainingHKD = Number(s.topupsTotalHKD || 0) - totalUsedHKD;
+    var remainingUSD = remainingHKD / rate;
+    var price = Number(s.liteBatchPriceUSD || 0.0168);
+    return {
+      rate: rate, totalUsedHKD: totalUsedHKD, remainingHKD: remainingHKD,
+      remainingUSD: remainingUSD,
+      imagesRemaining: Math.max(0, Math.floor(remainingUSD / price)),
+      extraSpendUSD: extraSpendUSD
+    };
+  }
+
+  function renderCredit(){
+    var el = $("creditBox");
+    var s = creditState.summary;
+    if (!s){ el.innerHTML = "<div class=\"muted\">增值結餘載入失敗。</div>"; return; }
+    var n = creditNumbers();
+    var warn = "";
+    if (n.imagesRemaining < 50) warn = " credit-warn-red";
+    else if (n.imagesRemaining < 200) warn = " credit-warn-amber";
+    var rateLine = creditState.rateFallback
+      ? "今日匯率 1 USD = " + CREDIT_FALLBACK_RATE.toFixed(2) + " HKD（後備估算——即時匯率載入失敗）"
+      : "今日匯率 1 USD = " + n.rate.toFixed(4) + " HKD（Frankfurter，" + esc(creditState.rateDate || "") + "）";
+    var html = "<div class=\"credit-big\">剩返 " + fmtUsd2(n.remainingUSD) + "</div>"
+      + "<div class=\"credit-sub\">約 " + fmtHkd(n.remainingHKD) + " · 大約仲可以生 <strong>" + n.imagesRemaining + "</strong> 張圖（Lite batch 價 $0.0168 USD／張）</div>"
+      + (n.imagesRemaining < 200 ? "<div class=\"credit-sub\">⚠️ 剩返少過 200 張圖——係時候增值喇。</div>" : "")
+      + "<div class=\"credit-grid\">"
+      + "<div><div class=\"clabel\">已預付（總數）</div><div class=\"cval\">" + fmtHkd(s.topupsTotalHKD) + "</div></div>"
+      + "<div><div class=\"clabel\">已用（估算）</div><div class=\"cval\">" + fmtHkd(n.totalUsedHKD) + "</div></div>"
+      + "<div><div class=\"clabel\">Batch 使費（至今）</div><div class=\"cval\">" + fmtUsd(s.batchTotalSpendUSD) + "</div></div>"
+      + "</div>"
+      + "<p class=\"muted\">" + rateLine + "。估算：以 2026-11-13 Google 結單 HK$16.79 已用為準，加上之後嘅 batch 使費；batch 以外直接生圖唔計在內，實際結餘可能略低。"
+      + (s.ledgerLive ? "" : " 增值記錄表未建立——顯示緊預設 HK$160.00 預付，請跑 sql/003-credit-topups.sql 啟用增值記錄。")
+      + "</p>";
+    var topups = s.topups || [];
+    if (topups.length){
+      html += "<div class=\"muted\">增值記錄：</div><table class=\"alist\"><thead><tr><th>日期</th><th>金額</th><th>備註</th></tr></thead><tbody>";
+      topups.forEach(function(t){
+        html += "<tr><td>" + esc(t.topped_up_at || "") + "</td><td>" + fmtHkd(t.amount_hkd) + "</td><td>" + esc(t.note || "") + "</td></tr>";
+      });
+      html += "</tbody></table>";
+    }
+    html += "<form id=\"creditTopupForm\" class=\"credit-form\">"
+      + "<label>增值金額 (HKD) <input type=\"number\" id=\"creditAmount\" min=\"0.01\" step=\"0.01\" placeholder=\"例如 160\" required></label>"
+      + "<label>日期 <input type=\"date\" id=\"creditDate\" value=\"" + hktTodayStr() + "\"></label>"
+      + "<input type=\"text\" id=\"creditNote\" placeholder=\"備註（可唔填）\" maxlength=\"200\">"
+      + "<button class=\"abtn primary\" type=\"submit\" id=\"creditTopupBtn\">記錄增值</button>"
+      + "</form>";
+    el.className = "credit-box" + warn;
+    el.innerHTML = html;
+    $("creditTopupForm").addEventListener("submit", function(ev){
+      ev.preventDefault();
+      var btn = $("creditTopupBtn");
+      if (btn.disabled) return; // double-click guard: already running
+      var amount = Number($("creditAmount").value);
+      var date = $("creditDate").value || hktTodayStr();
+      var note = $("creditNote").value || "";
+      if (!isFinite(amount) || amount <= 0){ batchMsg("請輸入增值金額（HKD）。", true); return; }
+      if (!confirm("確定記錄增值 " + fmtHkd(amount) + "（" + date + "）？")) return;
+      btn.disabled = true;
+      batchApi("credit-topup-add", { amount_hkd: amount, topped_up_at: date, note: note }).then(function(r){
+        btn.disabled = false;
+        creditState.summary = r.credit;
+        renderCredit();
+        batchMsg("已記錄增值 " + fmtHkd(amount) + "。", false);
+        loadLogs();
+      }).catch(function(e){
+        btn.disabled = false;
+        batchMsg("記錄增值失敗：" + e.message, true);
+      });
+    });
+  }
+
+  function loadCredit(){
+    return batchApi("credit-summary").then(function(s){
+      creditState.summary = s;
+      // Today's USD->HKD rate (Frankfurter, free, no key). Falls back to
+      // 7.85 and says so clearly when the fetch fails or looks wrong.
+      return fetch("https://api.frankfurter.app/latest?from=USD&to=HKD").then(function(r){
+        return r.json();
+      }).then(function(j){
+        var rate = j && j.rates && Number(j.rates.HKD);
+        if (isFinite(rate) && rate > 7 && rate < 8.5){
+          creditState.rate = rate;
+          creditState.rateDate = j.date || "";
+          creditState.rateFallback = false;
+        } else {
+          creditState.rate = CREDIT_FALLBACK_RATE;
+          creditState.rateFallback = true;
+        }
+        renderCredit();
+      }).catch(function(){
+        creditState.rate = CREDIT_FALLBACK_RATE;
+        creditState.rateFallback = true;
+        renderCredit();
+      });
+    }).catch(function(e){
+      $("creditBox").innerHTML = "<div class=\"muted\">增值結餘載入失敗：" + esc(e.message) + "</div>";
+    });
+  }
+
+  function loadBatchArticles(){
+    var from = $("bFrom").value, to = $("bTo").value;
+    // Always "without": the list only ever shows eligible articles
+    // (imageless, no pending batch) — the server enforces it, and the
+    // "all" filter option was removed (it could never show anything extra).
+    var image = "without";
+    $("bList").innerHTML = "<p class=\"muted\">載入中…</p>";
+    batchApi("list-articles", { dateFrom: from, dateTo: to, image: image }).then(function(r){
+      batchState.articles = r.articles || [];
+      renderBatchArticles(r);
+    }).catch(function(e){
+      $("bList").innerHTML = "<p class=\"muted\">載入失敗：" + esc(e.message) + "</p>";
+      batchMsg("載入體育新聞失敗：" + e.message, true);
+    });
+  }
+
+  function renderBatchArticles(r){
+    var list = $("bList");
+    var n = batchState.articles.length;
+    $("bCount").textContent = "共 " + n + " 篇（總數 " + r.total + "）";
+    if (!n){
+      list.innerHTML = "<p class=\"muted\">呢段時間冇符合條件嘅體育新聞。</p>";
+      return;
+    }
+    var html = "";
+    batchState.articles.forEach(function(a){
+      var title = a.title_zh_hant || a.title_en || a.slug;
+      var hasPrompt = (a.image_prompt || "").trim().length > 0;
+      var hasImage = !!a.image_url;
+      html += "<div class=\"batch-row\">"
+        + "<input type=\"checkbox\" class=\"bSel\" data-slug=\"" + esc(a.slug) + "\"" + (hasImage ? " disabled" : "") + ">"
+        + "<div class=\"bmeta\">"
+        + "<div class=\"bcat\">" + esc(a.sport || "") + " · " + esc(hktDate(a.published_at)) + (hasImage ? " · 已有圖" : "") + "</div>"
+        + "<div class=\"btitle\">" + esc(title) + "</div>"
+        + "<label class=\"prompt-label\" for=\"prompt-" + esc(a.slug) + "\">圖片 prompt</label>"
+        + "<textarea class=\"bPrompt\" id=\"prompt-" + esc(a.slug) + "\" data-slug=\"" + esc(a.slug) + "\" placeholder=\"未有 prompt——請先喺呢度寫一個，或者等 pipeline 準備好 prompt。\">" + esc(a.image_prompt || "") + "</textarea>"
+        + (hasPrompt ? "" : "<div class=\"muted\">⚠️ 未有 prompt——Generate 會失敗，請先填好。</div>")
+        + "</div></div>";
+    });
+    list.innerHTML = html;
+    // Prompt edits save on blur via the existing admin articles PATCH
+    // (?id=<slug> — the endpoint reads the slug from the query string).
+    var tas = list.querySelectorAll(".bPrompt");
+    for (var i = 0; i < tas.length; i++){
+      tas[i].addEventListener("change", function(){
+        var ta = this;
+        var slug = ta.getAttribute("data-slug");
+        var art = batchArticleBySlug(slug);
+        var orig = art ? (art.image_prompt || "") : "";
+        if (ta.value === orig) return;
+        batchMsg("儲存緊 " + slug + " 嘅 prompt…", false);
+        api("/api/admin/articles?id=" + encodeURIComponent(slug), { method: "PATCH", body: JSON.stringify({ image_prompt: ta.value }) })
+          .then(function(){
+            if (art) art.image_prompt = ta.value;
+            batchMsg("已儲存 " + slug + " 嘅 prompt。", false);
+          })
+          .catch(function(e){ batchMsg("儲存 prompt 失敗：" + e.message, true); });
+      });
+    }
+  }
+
+  function selectedSlugs(){
+    var slugs = [];
+    var boxes = document.querySelectorAll("#bList .bSel:checked");
+    for (var i = 0; i < boxes.length; i++) slugs.push(boxes[i].getAttribute("data-slug"));
+    return slugs;
+  }
+
+  function doGenerate(){
+    var slugs = selectedSlugs();
+    if (!slugs.length){ batchMsg("請先揀最少一篇體育新聞。", true); return; }
+    if (!batchState.model){ batchMsg("請先揀一個模型。", true); return; }
+    if (slugs.length > BATCH_MAX){
+      if (!confirm("你揀咗 " + slugs.length + " 篇，超過建議嘅 " + BATCH_MAX + " 篇一批。Batch 太大會慢啲、貴啲，失敗嗰陣要成批重做。\n\n㩒「確定」照送出；㩒「取消」返去減少選擇。")) return;
+    }
+    var btn = $("bGenBtn");
+    btn.disabled = true;
+    batchMsg("提交緊 batch…（" + slugs.length + " 篇，" + batchState.model + "）", false);
+    batchApi("create", { slugs: slugs, model: batchState.model }).then(function(r){
+      btn.disabled = false;
+      // Clear the selection: nothing stays checked after a successful submit.
+      var boxes = document.querySelectorAll("#bList .bSel");
+      for (var i = 0; i < boxes.length; i++) boxes[i].checked = false;
+      batchMsg("Batch 已建立：Gemini batch " + r.gemini_batch_name + "（" + r.batch.model + "，共 " + r.batch.article_count + " 篇）。生圖要等一段時間，稍後用 Batch 列表嘅 Check 掣查狀態。", false);
+      loadBatchStats();
+      loadCredit();
+      loadBatches();
+      loadReview();
+      loadLogs();
+    }).catch(function(e){
+      btn.disabled = false;
+      batchMsg("Generate 失敗：" + e.message, true);
+    });
+  }
+
+  // Expandable batch rows: each batch has a 詳情 button that shows its
+  // items (title, status, per-item Gemini error when failed) via the
+  // existing list-items action, so the user can see WHICH articles failed
+  // and why instead of guessing from totals. Expanded state survives list
+  // refreshes. After a Check with failures, that batch opens automatically.
+  var batchItemsCache = {}; // batchId -> items array, or null while loading
+
+  function loadBatches(){
+    return batchApi("list-batches", { limit: 20 }).then(function(r){
+      batchState.batches = r.batches || [];
+      renderBatches();
+    }).catch(function(e){
+      $("bBatches").innerHTML = "<p class=\"muted\">載入失敗：" + esc(e.message) + "</p>";
+      batchMsg("載入 Batch 列表失敗：" + e.message, true);
+    });
+  }
+
+  function renderBatches(){
+    var el = $("bBatches");
+    var batches = batchState.batches || [];
+    if (!batches.length){ el.innerHTML = "<p class=\"muted\">未有 batch。</p>"; return; }
+    var html = "";
+    batches.forEach(function(b){
+      var c = b.counts || {};
+      html += "<div class=\"batch-row\"><div class=\"bmeta\">"
+        + "<div class=\"btitle\">" + esc(b.gemini_batch_name || b.id) + "</div>"
+        + "<div class=\"bcat\">" + esc(b.model) + " · 狀態：" + esc(b.status) + " · " + esc(b.created_at || "") + " · " + b.article_count + " 篇（已生成 " + (c.generated || 0) + " / 已批准 " + (c.approved || 0) + " / 失敗 " + (c.failed || 0) + "）</div>"
+        + "</div><button class=\"abtn bItemsBtn\" type=\"button\" data-id=\"" + esc(b.id) + "\">詳情</button>"
+        + "<button class=\"abtn bCheck\" type=\"button\" data-id=\"" + esc(b.id) + "\">Check</button></div>";
+      if (Object.prototype.hasOwnProperty.call(batchItemsCache, b.id)){
+        var items = batchItemsCache[b.id];
+        html += "<div class=\"bItems\">";
+        if (items === null) html += "<p class=\"muted\">載入緊…</p>";
+        else if (!items.length) html += "<p class=\"muted\">呢個 batch 未有項目。</p>";
+        else {
+          html += "<table class=\"alist\"><thead><tr><th>文章</th><th style=\"width:80px\">狀態</th><th>詳情／錯誤</th></tr></thead><tbody>";
+          items.forEach(function(it){
+            html += "<tr><td>" + esc(it.title || it.article_slug) + "<br><span class=\"muted\">" + esc(it.article_slug) + "</span></td>"
+              + "<td>" + esc(it.status) + "</td>"
+              // Error text is red ONLY for failed items — a generated /
+              // approved item must never show an old error in red (user
+              // report 2026-11-13: stale "batch batch_state_succeeded").
+              + "<td>" + (it.status === "failed" && it.error ? "<span style=\"color:#b71c1c\">" + esc(it.error) + "</span>" : (it.staging_url ? "<a href=\"" + esc(it.staging_url) + "\" target=\"_blank\" rel=\"noopener\">睇圖</a>" : "")) + "</td></tr>";
+          });
+          html += "</tbody></table>";
+        }
+        html += "</div>";
+      }
+    });
+    el.innerHTML = html;
+    var itemBtns = el.querySelectorAll(".bItemsBtn");
+    for (var i = 0; i < itemBtns.length; i++){
+      itemBtns[i].addEventListener("click", function(){ toggleBatchItems(this.getAttribute("data-id")); });
+    }
+    var btns = el.querySelectorAll(".bCheck");
+    for (var j = 0; j < btns.length; j++){
+      btns[j].addEventListener("click", function(){
+        var btn = this;
+        if (btn.disabled) return; // double-click guard: already running
+        var batchId = btn.getAttribute("data-id");
+        btn.disabled = true;
+        batchCheckRunning = true;
+        // Show the result inline in this batch row (the status box is
+        // updated too, but the page never scrolls).
+        var rowEl = btn.closest ? btn.closest(".batch-row") : null;
+        var catEl = rowEl ? rowEl.querySelector(".bcat") : null;
+        function setRowStatus(txt){
+          if (catEl) catEl.textContent = catEl.textContent.replace(/狀態：[^·]*/, "狀態：" + txt);
+        }
+        batchMsg("查緊 batch 狀態…", false);
+        batchApi("check", { batchId: batchId }).then(function(r){
+          btn.disabled = false;
+          batchCheckRunning = false;
+          setRowStatus(r.batch.status);
+          batchMsg(r.note || ("Batch 狀態：" + r.batch.status), false);
+          loadBatches().then(function(){
+            // If anything failed, open this batch's items view so the
+            // per-item errors are visible right away.
+            var failed = r.items ? r.items.filter(function(x){ return x.status === "failed"; }).length : 0;
+            if (failed > 0 && !Object.prototype.hasOwnProperty.call(batchItemsCache, batchId)) toggleBatchItems(batchId);
+          });
+          loadReview();
+          loadBatchStats();
+          loadCredit();
+          loadLogs();
+        }).catch(function(e){
+          btn.disabled = false;
+          batchCheckRunning = false;
+          setRowStatus("Check 失敗");
+          batchMsg("Check 失敗：" + e.message, true);
+        });
+      });
+    }
+  }
+
+  function toggleBatchItems(batchId){
+    if (Object.prototype.hasOwnProperty.call(batchItemsCache, batchId)){
+      delete batchItemsCache[batchId];
+      renderBatches();
+      return;
+    }
+    batchItemsCache[batchId] = null;
+    renderBatches();
+    batchApi("list-items", { batchId: batchId, limit: 100 }).then(function(r){
+      batchItemsCache[batchId] = r.items || [];
+      renderBatches();
+    }).catch(function(e){
+      delete batchItemsCache[batchId];
+      renderBatches();
+      batchMsg("載入 batch 項目失敗：" + e.message, true);
+    });
+  }
+
+  // Runs one bulk action (approve-all / reject-all) as a sequential loop of
+  // the existing per-item calls, so each item goes through exactly the same
+  // code path (and log entry) as clicking its own Approve / Reject button.
+  // Returns a promise of { done, failed }.
+  function runBulk(action, items){
+    var done = 0, failed = 0;
+    var chain = Promise.resolve();
+    items.forEach(function(it){
+      chain = chain.then(function(){
+        return batchApi(action, { itemIds: [it.id] }).then(function(r){
+          var res = r.results && r.results[0];
+          if (res && (res.status === "approved" || res.status === "rejected")) done++;
+          else failed++;
+        }).catch(function(){ failed++; });
+      });
+    });
+    return chain.then(function(){ return { done: done, failed: failed }; });
+  }
+
+  function setReviewButtonsDisabled(disabled){
+    var btns = $("bReview").querySelectorAll("button");
+    for (var i = 0; i < btns.length; i++) btns[i].disabled = disabled;
+  }
+
+  function loadReview(){
+    var el = $("bReview");
+    batchApi("list-items", { status: "generated", limit: 50 }).then(function(r){
+      var items = r.items || [];
+      // Bulk buttons are always shown; disabled when there is nothing to act
+      // on, so a bulk approve/reject can never fire on an empty list.
+      var html = "<div class=\"admin-bar\"><button class=\"abtn primary\" id=\"bApproveAll\" type=\"button\"" + (items.length ? "" : " disabled") + ">全部批准</button>"
+        + "<button class=\"abtn\" id=\"bRejectAll\" type=\"button\"" + (items.length ? "" : " disabled") + ">全部拒絕</button>"
+        + "<span class=\"muted\">" + (items.length ? "一次過處理下面 " + items.length + " 張圖" : "未有已生成嘅圖") + "</span></div>";
+      if (!items.length){ el.innerHTML = html + "<p class=\"muted\">Check 咗 batch 之後，有圖會喺呢度出現。</p>"; }
+      else {
+        html += "<div class=\"review-grid\">";
+        items.forEach(function(it){
+          html += "<div class=\"review-card\">"
+            + (it.staging_url ? "<img src=\"" + esc(it.staging_url) + "\" alt=\"\">" : "<div class=\"muted\" style=\"padding:20px\">圖片載入唔到</div>")
+            + "<div class=\"rbody\"><div class=\"rtitle\">" + esc(it.title || it.article_slug) + "</div>"
+            + "<div class=\"bcat\">" + esc(it.model || "") + "</div>"
+            + "<div class=\"rbtns\"><button class=\"abtn primary bApprove\" type=\"button\" data-id=\"" + esc(it.id) + "\">Approve（批准）</button>"
+            + "<button class=\"abtn bReject\" type=\"button\" data-id=\"" + esc(it.id) + "\">Reject（拒絕）</button></div></div></div>";
+        });
+        html += "</div>";
+        el.innerHTML = html;
+        var appBtns = el.querySelectorAll(".bApprove");
+        for (var i = 0; i < appBtns.length; i++){
+          appBtns[i].addEventListener("click", function(){
+            var btn = this;
+            if (btn.disabled) return; // double-click guard: already running
+            btn.disabled = true;
+            batchMsg("批准緊…", false);
+            batchApi("approve", { itemIds: [btn.getAttribute("data-id")] }).then(function(r){
+              var res = r.results && r.results[0];
+              if (res && res.status === "approved") batchMsg("已批准並上 R2：" + res.article_slug, false);
+              else batchMsg("批准失敗：" + (res && res.error ? res.error : "unknown"), true);
+              loadReview(); loadBatches(); loadBatchStats(); loadCredit(); loadLogs();
+            }).catch(function(e){ btn.disabled = false; batchMsg("批准失敗：" + e.message, true); });
+          });
+        }
+        var rejBtns = el.querySelectorAll(".bReject");
+        for (var j = 0; j < rejBtns.length; j++){
+          rejBtns[j].addEventListener("click", function(){
+            var btn = this;
+            if (btn.disabled) return; // double-click guard: already running
+            if (!confirm("確定要拒絕呢張圖？Staging 嘅圖會保留，可以再睇，唔會連結返原文。")) return;
+            btn.disabled = true;
+            batchMsg("拒絕緊…", false);
+            batchApi("reject", { itemIds: [btn.getAttribute("data-id")] }).then(function(r){
+              var res = r.results && r.results[0];
+              if (res && res.status === "rejected") batchMsg("已拒絕：" + res.article_slug, false);
+              else batchMsg("拒絕失敗：" + (res && res.error ? res.error : "unknown"), true);
+              loadReview(); loadBatches(); loadBatchStats(); loadCredit(); loadLogs();
+            }).catch(function(e){ btn.disabled = false; batchMsg("拒絕失敗：" + e.message, true); });
+          });
+        }
+        $("bApproveAll").addEventListener("click", function(){
+          if (this.disabled) return; // double-click guard: already running
+          if (!confirm("一次過批准 " + items.length + " 張圖？圖會上 R2 並連結返原文。")) return;
+          setReviewButtonsDisabled(true);
+          batchMsg("一次過批准緊 " + items.length + " 張圖…", false);
+          runBulk("approve", items).then(function(c){
+            batchMsg("已批准 " + c.done + " 張" + (c.failed ? "，失敗 " + c.failed + " 張" : "") + "。", c.failed > 0);
+            loadReview(); loadBatches(); loadBatchStats(); loadCredit(); loadLogs();
+          });
+        });
+        $("bRejectAll").addEventListener("click", function(){
+          if (this.disabled) return; // double-click guard: already running
+          if (!confirm("一次過拒絕 " + items.length + " 張圖？Staging 嘅圖會保留，可以再睇，唔會連結返原文。")) return;
+          setReviewButtonsDisabled(true);
+          batchMsg("一次過拒絕緊 " + items.length + " 張圖…", false);
+          runBulk("reject", items).then(function(c){
+            batchMsg("已拒絕 " + c.done + " 張" + (c.failed ? "，失敗 " + c.failed + " 張" : "") + "。", c.failed > 0);
+            loadReview(); loadBatches(); loadBatchStats(); loadCredit(); loadLogs();
+          });
+        });
+      }
+      // Rejected items stay visible (staging is kept, user decision
+      // 2026-11-13): show them below the review list with their staging
+      // image + link, so they can still be opened and looked at.
+      return batchApi("list-items", { status: "rejected", limit: 50 }).catch(function(){ return { items: [] }; });
+    }).then(function(r){
+      var rej = r.items || [];
+      if (!rej.length) return;
+      var html = "<h3 style=\"margin-top:18px\">已拒絕（保留喺 staging，可再睇）</h3><div class=\"review-grid\">";
+      rej.forEach(function(it){
+        html += "<div class=\"review-card\">"
+          + (it.staging_url ? "<a href=\"" + esc(it.staging_url) + "\" target=\"_blank\" rel=\"noopener\"><img src=\"" + esc(it.staging_url) + "\" alt=\"\"></a>" : "<div class=\"muted\" style=\"padding:20px\">圖片載入唔到</div>")
+          + "<div class=\"rbody\"><div class=\"rtitle\">" + esc(it.title || it.article_slug) + "</div>"
+          + "<div class=\"bcat\">" + esc(it.model || "") + " · 已拒絕</div></div></div>";
+      });
+      html += "</div>";
+      el.insertAdjacentHTML("beforeend", html);
+    }).catch(function(e){
+      $("bReview").innerHTML = "<p class=\"muted\">載入失敗：" + esc(e.message) + "</p>";
+      batchMsg("載入待審核失敗：" + e.message, true);
+    });
+  }
+
+  function loadLogs(){
+    batchApi("list-logs").then(function(r){
+      var el = $("bLog");
+      if (r.logsMissing){
+        el.innerHTML = "<p class=\"muted\">log 表未建立，請先跑 sql/002-batch-logs.sql（Supabase SQL Editor），然後重新整理。</p>";
+        return;
+      }
+      var logs = r.logs || [];
+      if (!logs.length){ el.innerHTML = "<p class=\"muted\">未有操作記錄。</p>"; return; }
+      var html = "<table class=\"alist\"><thead><tr><th style=\"width:150px\">時間</th><th>操作</th><th>詳情</th><th style=\"width:56px\">結果</th></tr></thead><tbody>";
+      logs.forEach(function(l){
+        html += "<tr><td>" + esc((l.created_at || "").replace("T", " ").slice(0, 19)) + "</td>"
+          + "<td>" + esc(l.action || "") + (l.batch_id ? "<br><span class=\"muted\">" + esc(l.batch_id) + "</span>" : "") + "</td>"
+          + "<td>" + esc(l.detail || "") + (l.error ? "<br><span style=\"color:#b71c1c\">" + esc(l.error) + "</span>" : "") + "</td>"
+          + "<td>" + (l.ok ? "成功" : "失敗") + "</td></tr>";
+      });
+      html += "</tbody></table>";
+      el.innerHTML = html;
+    }).catch(function(e){
+      $("bLog").innerHTML = "<p class=\"muted\">載入失敗：" + esc(e.message) + "</p>";
+    });
+  }
+
+  // Auto-check pending batches every 1 minute (user decision 2026-11-13):
+  // calls the same Check the admin button does, for pending batches only,
+  // so generated images appear in the review list without clicking Check.
+  // Skips when the page is hidden, and never runs while a manual Check is
+  // already in flight. Silent — it just refreshes the lists; a failure
+  // retries next minute.
+  function autoCheckPending(){
+    if (batchCheckRunning) return;
+    if (document.hidden) return;
+    var pending = (batchState.batches || []).filter(function(b){
+      return b.status === "pending" || b.status === "running" || b.status === "submitted";
+    });
+    if (!pending.length) return;
+    batchCheckRunning = true;
+    var chain = Promise.resolve();
+    pending.forEach(function(b){
+      chain = chain.then(function(){
+        return batchApi("check", { batchId: b.id }).catch(function(){ /* retry next minute */ });
+      });
+    });
+    chain.then(function(){
+      batchCheckRunning = false;
+      loadBatches(); loadReview(); loadBatchStats(); loadCredit(); loadLogs();
+    });
+  }
+
+  function initBatchUI(){
+    var today = hktTodayStr();
+    $("bFrom").value = today;
+    $("bTo").value = today;
+    $("bLoadBtn").addEventListener("click", loadBatchArticles);
+    $("bGenBtn").addEventListener("click", doGenerate);
+    $("bLogRefreshBtn").addEventListener("click", loadLogs);
+    loadBatchStats();
+    loadCredit();
+    loadBatches();
+    loadReview();
+    loadLogs();
+    loadBatchArticles();
+    // Auto-check pending batches every 1 minute (see autoCheckPending).
+    setInterval(autoCheckPending, AUTO_CHECK_MS);
+  }
+
+  // Boot: check config, then check whether already signed in.
+  api("/api/admin/config").then(function(cfg){
+    if (!cfg.configured || !cfg.clientId){
+      $("setupBox").classList.remove("hidden");
+      return;
+    }
+    return api("/api/admin/articles?limit=1").then(function(){
+      enterBatch("");
+    }).catch(function(){
+      $("signinBox").classList.remove("hidden");
+      loadGsi(cfg.clientId);
+    });
+  }).catch(function(e){ showMsg("載入失敗：" + e.message, true); });
+})();
+</script>
+</body>
+</html>

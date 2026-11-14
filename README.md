@@ -28,6 +28,8 @@ Reader → Vercel (hksports-app)
   ├── api/ingest-image.js              POST with x-ingest-secret — pipeline image upload to R2
   ├── lib/r2.js                        SigV4 S3 PUT helper (shared by ingest-image)
   ├── admin/index.html                 admin UI (Google SSO, see below)
+  ├── admin/batch/index.html           batch images admin UI (manual testing for now, see below)
+  ├── api/admin/batch.js               Gemini Batch API image generation (see below)
   └── api/admin/*                      admin API (all routes require the Google SSO session)
         ├── Supabase Postgres (sports_articles table) — DATABASE ONLY
         └── Cloudflare R2 (images.hksports.hk) — PRIMARY IMAGE STORE
@@ -83,6 +85,7 @@ When the env vars appear, the app switches automatically. Nothing else changes.
 | `R2_PUBLIC_BASE_URL` | for live images | `https://images.hksports.hk` once the custom domain is connected; r2.dev URL before that |
 | `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_ENDPOINT` | for `/api/ingest-image` | same account-wide token as the news app (`hkcn-news-upload`, All buckets); `R2_BUCKET` is `hksports-images` |
 | `INGEST_SECRET` | for publishing | **same value as the news app** (shared secret, type `plain` so the pipeline can read it back via the Vercel API) |
+| `GEMINI_API_KEY` | for batch images | Gemini API key — server-side only, never in the browser or repo. The batch endpoint reads it from env; if it is missing, Generate fails with a clear message telling the admin to set it in Vercel. **Not set yet (2026-11-14) — add the same key as the news app.** |
 | `GOOGLE_CLIENT_ID` | for admin sign-in | same OAuth client as the news app (`hkcn-news-admin`, public id, not a secret); the client must also allow the origins/redirects for `https://hksports-app-eva318chan.vercel.app` and `https://hksports.hk` |
 | `ADMIN_EMAILS` | for admin sign-in | comma-separated allowlist of Google accounts allowed into `/admin/` (`eddiehlk@gmail.com,eva318.chan@gmail.com,bob318@gmail.com`) |
 | `ADMIN_SESSION_SECRET` | for admin sign-in | **a new random value, different from the news app's**; HMAC key for the admin session cookie — server-side only, never in the browser or repo |
@@ -129,6 +132,37 @@ from day one (the column is in the initial migration).
 `INGEST_SECRET`.** The cron cannot hold a Google SSO session, so the admin
 API is for human / admin use only — pipeline publishing is unchanged (see
 Publishing below).
+
+**Batch images (2026-11-14, same as the news app).** The batch image
+function lives on its own page, `/admin/batch/` (linked from the main admin
+page's top navigation as "Batch images（批量生圖）", with a link back to
+`/admin/`), and generates AI design images with the Gemini Batch API — the
+only image-generation path. Manual flow: the admin selects articles, clicks
+Generate, clicks Check, reviews the images and approves — the user controls
+every step. **Auto flow is PAUSED (user decision 2026-11-14): no pipeline
+step calls auto-submit and no cron calls auto-poll, so nothing generates or
+approves itself until the user is satisfied with manual testing and says
+the word.** When it is switched on, the wiring is the same as the news app
+(pipeline step 5F auto-submit + a 5-minute auto-poll cron), with the same
+3-attempt retry cap and the same auto-approve behaviour.
+
+**Own tables, own batch.** The sports endpoint
+(`POST /api/admin/batch`, the 12th and last Vercel function on this
+project) reads and writes only its own tables — `sports_image_batches`,
+`sports_image_batch_items`, `sports_batch_logs` (run
+`sql/001-sports-batch-tables.sql` + `sql/002-sports-batch-logs.sql` once in
+the Supabase SQL Editor) and `sports_articles`. It never touches the news
+app's `image_batches` / `image_batch_items` / `batch_logs` / `articles`.
+`gemini_model_prices` and `gemini_credit_topups` are shared with the news
+app (same prices, same Gemini key, same HK$160 prepaid credit), so the
+credit tracker on this page counts BOTH sites' batch spend. Images go to
+this project's own R2 bucket (`hksports-images`) via `lib/r2.js`.
+
+**Prerequisites before the first Generate works:** (1) the two SQL files
+above have been run in the Supabase SQL Editor; (2) `GEMINI_API_KEY` is set
+in Vercel → hksports-app → Environment Variables (same key as the news
+app — not set yet as of 2026-11-14, so Generate currently fails with a
+clear 503 telling the admin to set it).
 
 **Auth is Google SSO only — no passwords.** The admin page shows a Google
 Sign-In button (Google Identity Services); the ID token is sent to
