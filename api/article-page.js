@@ -30,6 +30,16 @@ const SHARE_COPY = { en: "Copy link", zh_hant: "複製連結", zh_hans: "复制�
 const SHARE_COPIED = { en: "Copied", zh_hant: "已複製", zh_hans: "已复制" };
 const SHARE_WECHAT_HINT = { en: "Scan with WeChat to share", zh_hant: "用微信掃一掃分享", zh_hans: "用微信扫一扫分享" };
 
+// Body text is stored as {en, zh_hant, zh_hans} strings, paragraphs
+// separated by a blank line (same shape as the static data/*.json body).
+// Accept an array of paragraphs too, for robustness.
+function bodyParasOf(b) {
+  if (!b) return [];
+  if (Array.isArray(b)) return b.filter((p) => typeof p === "string" && p.trim()).map((p) => p.trim());
+  if (typeof b === "string") return b.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  return [];
+}
+
 // published_at is an instant (Supabase renders timestamptz as UTC, seed rows
 // carry +08:00); display it as Hong Kong wall time, not the raw UTC string
 // (an early-morning HKT article otherwise shows the previous day).
@@ -84,6 +94,14 @@ const LANG_SCRIPT = `
       var h='';
       for(var i=0;i<arr.length;i++) h+='<button class="tag">#'+esc(arr[i])+'</button>';
       tags.innerHTML=h;
+    }
+    var bd=document.getElementById('articleBody');
+    if(bd){
+      var bt=(a&&a.body)?(a.body[LANG]||a.body.zh_hant||a.body.zh_hans||''):''; 
+      var paras=Array.isArray(bt)?bt:(typeof bt==='string'?bt.split(/\\n\\s*\\n/):[]);
+      var bh='';
+      for(var j=0;j<paras.length;j++){ var pp=String(paras[j]).trim(); if(pp) bh+='<p>'+esc(pp)+'</p>'; }
+      bd.innerHTML=bh;
     }
     if(t) document.title=t+' | '+SITE;
   }
@@ -187,6 +205,15 @@ function pageHTML(a, base) {
   const caption = a.image_caption
     ? `<p style="font-size:13px;color:#888;margin:8px 0 0">${esc(a.image_caption)}</p>`
     : "";
+  // Full article text, rendered below the summary and above the extras.
+  // Server renders the zh_hant paragraphs (the page default); the language
+  // switcher re-renders per language. Articles without a body get no div
+  // at all, so they render exactly as before.
+  const bodyText = a.body ? (a.body.zh_hant || a.body.en || a.body.zh_hans || "") : "";
+  const bodyParas = bodyParasOf(bodyText);
+  const bodyHtml = bodyParas.length
+    ? `<div class="article-body" id="articleBody">\n${bodyParas.map((p) => `<p>${esc(p)}</p>`).join("\n")}\n</div>`
+    : "";
   // Extra real photos, [{url, caption}] — rendered below the summary, each
   // with the same hero treatment as the main image. Absent for most articles.
   const extras = Array.isArray(a.extra_images) ? a.extra_images : [];
@@ -228,6 +255,7 @@ ${ogImage}<meta property="og:url" content="${esc(url)}">
 .share-wechat{text-align:center;margin:4px 0 12px}
 .share-wechat img{display:block;margin:0 auto}
 .share-wechat p{font-size:13px;color:#888;margin:8px 0 0}
+.article-body p{margin:0 0 14px;line-height:1.8}
 </style>
 <script>try{var _t=localStorage.getItem("hks_theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.theme=_t;}catch(e){}
 function logoFallback(){var b=document.getElementById("brandName");if(b)b.style.display="flex";["logoLight","logoDark"].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display="none";});}</script>
@@ -257,7 +285,7 @@ ${img}
 ${caption}  <div class="card-top"><span class="sport-tag">${esc(a.sport)}</span><span>${esc(fmtDateTime(a.published_at))}</span><span> · ${srcName}</span></div>
   <h1 class="article-title">${esc(zhTitle)}</h1>
   <p class="lead article-summary">${esc(zhSummary)}</p>
-${extrasHtml}  <div class="tags article-tags">${tags}</div>
+${bodyHtml}${extrasHtml}  <div class="tags article-tags">${tags}</div>
   <div style="margin:20px 0;display:flex;gap:10px;flex-wrap:wrap">
     <a class="abtn primary" style="font-size:15px;padding:10px 22px" href="${srcUrl}" target="_blank" rel="noopener">閱讀原文 →</a>
     <button class="abtn" style="font-size:15px;padding:10px 18px" type="button" id="shareBtn">分享</button>

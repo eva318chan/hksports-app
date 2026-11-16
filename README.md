@@ -130,7 +130,12 @@ from day one (the column is in the initial migration). `extra_images` is an
 optional array of up to 10 `{url, caption}` objects for additional real photos
 (the hero image stays in `image_url` / `image_caption`); it needs migration
 `supabase/migrations/002_extra_images.sql` applied in the Supabase SQL Editor
-first, and renders below the summary on the article page.
+first, and renders below the summary on the article page. `body` is an
+optional `{en, zh_hant, zh_hans}` object of paragraph strings (paragraphs
+separated by a blank line), the full article text; it needs migration
+`supabase/migrations/003_body.sql` applied in the Supabase SQL Editor first,
+and renders below the summary (above the extra images) on the article page.
+Articles without a body render exactly as before.
 
 **The automated pipeline keeps using `POST /api/ingest` with
 `INGEST_SECRET`.** The cron cannot hold a Google SSO session, so the admin
@@ -338,4 +343,5 @@ INGEST_SECRET=test-secret node scripts/serve.mjs 3100
 | `scripts/migrate.mjs`, `scripts/serve.mjs` | migration + local dev server |
 | `supabase/migrations/001_sports_articles.sql` | DB schema + RLS + `sports_meta()` |
 | `supabase/migrations/002_extra_images.sql` | adds `extra_images` jsonb to `sports_articles` (multi-photo articles) |
+| `supabase/migrations/003_body.sql` | adds `body` jsonb to `sports_articles` (full article text) |
 | `vercel.json` | rewrites `/a/:slug.html`, `/sitemap.xml`, `/rss.xml`; functions region `sin1` |

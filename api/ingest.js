@@ -3,11 +3,14 @@
 //   Body (one article, same shape as the old data/*.json entries):
 //     { id, sport, published_at, source (plain string), source_url,
 //       image_url, image_r2_key?, image_caption?, footer_note?, image_prompt?,
-//       extra_images?,
+//       extra_images?, body?,
 //       title:{en,zh_hant,zh_hans}, summary:{en,zh_hant,zh_hans},
 //       tags:{en,zh_hant,zh_hans} }
 //   extra_images is an optional array of {url, caption} for additional real
 //   photos (max 10). Needs migration 002 applied before it can be sent.
+//   body is an optional {en, zh_hant, zh_hans} object of paragraph strings
+//   (paragraphs separated by a blank line), the full article text. Needs
+//   migration 003 applied before it can be sent.
 //   image_prompt is the exact Gemini prompt used to generate the article's
 //   AI design image. It is stored in sports_articles.image_prompt (the
 //   column exists from day one — no second migration needed). It is null /
@@ -73,6 +76,8 @@ function toDbRow(a) {
     // Same rule as the news app: extra_images needs migration 002 applied
     // before it can be sent, or the upsert fails on the unknown column.
     ...(a.extra_images ? { extra_images: a.extra_images } : {}),
+    // Same rule: body needs migration 003 applied before it can be sent.
+    ...(a.body ? { body: a.body } : {}),
     title_en: a.title?.en || "",
     title_zh_hant: a.title?.zh_hant || "",
     title_zh_hans: a.title?.zh_hans || "",
@@ -104,6 +109,14 @@ function validate(a) {
           (e.caption !== undefined && typeof e.caption !== "string")) {
         return "each extra_images item needs a url (http(s)) and an optional caption string";
       }
+    }
+  }
+  if (a.body !== undefined) {
+    if (!a.body || typeof a.body !== "object" || Array.isArray(a.body)) {
+      return "body must be an object {en, zh_hant, zh_hans} of paragraph strings";
+    }
+    for (const v of Object.values(a.body)) {
+      if (typeof v !== "string") return "body values must be strings";
     }
   }
   return null;
