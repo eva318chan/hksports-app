@@ -15,7 +15,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
 }[c]));
 
-const SPORTS_ZH = {football:"足球",basketball:"籃球",badminton:"羽毛球",table_tennis:"乒乓球",tennis:"網球",athletics:"田徑",swimming:"游泳",volleyball:"排球",cycling:"單車",rugby:"欖球",golf:"高爾夫球",snooker:"桌球",others:"體育"};
+const SPORTS_ZH = {football:"足球",basketball:"籃球",badminton:"羽毛球",table_tennis:"乒乓球",tennis:"網球",athletics:"田徑",swimming:"游泳",volleyball:"排球",cycling:"單車",rugby:"欖球",golf:"高爾夫球",fencing:"劍擊",snooker:"桌球",others:"體育"};
 
 const STANDARD_FOOTER = "摘要由本站重新編寫，圖片版權歸原新聞機構所有。";
 

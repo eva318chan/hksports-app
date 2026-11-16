@@ -1,7 +1,7 @@
 "use strict";
 /* 中港體育速報 HK-China Sports Express */
 
-// All 22 sport keys the live data actually uses (plan §1.5). The 6 keys the
+// All 23 sport keys the live data actually uses (plan §1.5). The 6 keys the
 // old app.js missed (cricket, handball, f1, motorsport, baseball, bowling)
 // are included so their 29 articles filter and label correctly instead of
 // falling back to "others".
@@ -17,6 +17,7 @@ const SPORTS = {
   cycling:     {en:"Cycling",      zh_hant:"單車",         zh_hans:"单车"},
   rugby:       {en:"Rugby",        zh_hant:"欖球",         zh_hans:"榄球"},
   golf:        {en:"Golf",         zh_hant:"高爾夫球",     zh_hans:"高尔夫球"},
+  fencing:     {en:"Fencing",      zh_hant:"劍擊",         zh_hans:"剑击"},
   snooker:     {en:"Snooker",      zh_hant:"桌球",         zh_hans:"台球"},
   boxing_mma:  {en:"Boxing / MMA", zh_hant:"拳擊／綜合格鬥", zh_hans:"拳击／综合格斗"},
   esports:     {en:"Esports",      zh_hant:"電競",         zh_hans:"电竞"},

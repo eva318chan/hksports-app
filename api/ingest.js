@@ -26,12 +26,13 @@
 const SITE = "hksports";
 const TABLE = "sports_articles";
 
-// The 22 sport keys the live site actually uses (plan §1.5) — the 6 extra
+// The 23 sport keys the live site actually uses (plan §1.5) — the 6 extra
 // keys (cricket, handball, f1, motorsport, baseball, bowling) are included
 // so their 29 articles ingest instead of failing validation.
 const SPORTS = new Set([
   "football", "basketball", "badminton", "table_tennis", "tennis",
   "athletics", "swimming", "volleyball", "cycling", "rugby", "golf",
+  "fencing",
   "snooker", "boxing_mma", "esports", "racing", "cricket", "handball",
   "f1", "motorsport", "baseball", "bowling", "others",
 ]);

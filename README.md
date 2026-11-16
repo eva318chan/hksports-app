@@ -122,7 +122,7 @@ Only a title (`zh_hant` or `en`) is required. `slug` is optional — when
 omitted it is auto-derived from the English title (lowercase letters, digits
 and hyphens only; dots are rejected with 400). `published_at` defaults to
 now; `status` defaults to `published` (`draft` unpublishes); `sport` must be
-one of the 22 sport keys and defaults to `others`. Creating with a slug that
+one of the 23 sport keys and defaults to `others`. Creating with a slug that
 already exists returns 409 and never overwrites — use PATCH to update. PATCH
 accepts the same fields (plus `image_r2_key`, `image_caption`,
 `footer_note`); omitted fields are left unchanged. `image_prompt` is stored
@@ -327,7 +327,7 @@ INGEST_SECRET=test-secret node scripts/serve.mjs 3100
 | Path | What it is |
 |---|---|
 | `index.html`, `assets/style.css`, `assets/logo-*.png`, `assets/favicon.png` | copied verbatim from the live repo |
-| `assets/app.js` | live `app.js` with only the data loading changed (diff it: theme/i18n/render/share code is identical); SPORTS now has all 22 keys |
+| `assets/app.js` | live `app.js` with only the data loading changed (diff it: theme/i18n/render/share code is identical); SPORTS now has all 23 keys |
 | `lib/data.js` | the data seam (seed ↔ Supabase, R2 ↔ stored image URLs) |
 | `api/*.js` | Vercel serverless functions (no dependencies, no framework). 11 functions — shared code lives in root `lib/`, NOT under `api/`, or Vercel would count it as a function (Hobby limit is 12 per deployment) |
 | `admin/index.html` | admin UI (Google SSO; calls `/api/admin/*`) |
