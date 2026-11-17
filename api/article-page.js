@@ -192,9 +192,21 @@ const LANG_SCRIPT = `
 })();
 `;
 
+// Share previews (WhatsApp/Facebook) and search snippets only get a short
+// excerpt — the full summary is the whole story, far too long for a card.
+function shortDesc(s) {
+  const t = (s || "").replace(/\s+/g, " ").trim();
+  if (t.length <= 120) return t;
+  const cut = t.slice(0, 120);
+  const idx = Math.max(cut.lastIndexOf("。"), cut.lastIndexOf("！"), cut.lastIndexOf("？"));
+  if (idx >= 40) return cut.slice(0, idx + 1);
+  return cut + "…";
+}
+
 function pageHTML(a, base) {
   const zhTitle = a.title.zh_hant || a.title.en || "";
   const zhSummary = a.summary.zh_hant || a.summary.en || "";
+  const desc = shortDesc(zhSummary);
   const tags = (a.tags.zh_hant || []).map((g) => `<button class="tag">#${esc(g)}</button>`).join("");
   const url = `${base}/a/${a.id}.html`;
   // Sports rule: no image => NO hero div at all (verified on the live site:
@@ -235,11 +247,11 @@ function pageHTML(a, base) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(zhTitle)} | 港體育</title>
-<meta name="description" content="${esc(zhSummary)}">
+<meta name="description" content="${esc(desc)}">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="港體育 Hong Kong Sports">
 <meta property="og:title" content="${esc(zhTitle)}">
-<meta property="og:description" content="${esc(zhSummary)}">
+<meta property="og:description" content="${esc(desc)}">
 ${ogImage}<meta property="og:url" content="${esc(url)}">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="../assets/favicon.png">
