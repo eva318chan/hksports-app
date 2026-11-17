@@ -193,11 +193,12 @@ const LANG_SCRIPT = `
 `;
 
 // Share previews (WhatsApp/Facebook) and search snippets only get a short
-// excerpt — the full summary is the whole story, far too long for a card.
+// excerpt (first paragraph or two, ~280 chars) — the full summary is
+// the whole story, far too long for a card.
 function shortDesc(s) {
   const t = (s || "").replace(/\s+/g, " ").trim();
-  if (t.length <= 120) return t;
-  const cut = t.slice(0, 120);
+  if (t.length <= 280) return t;
+  const cut = t.slice(0, 280);
   const idx = Math.max(cut.lastIndexOf("。"), cut.lastIndexOf("！"), cut.lastIndexOf("？"));
   if (idx >= 40) return cut.slice(0, idx + 1);
   return cut + "…";
