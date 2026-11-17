@@ -311,6 +311,11 @@ captions).
   same for its own URL.
 - **Sitemap/RSS** use the request host (staging host on staging,
   `hksports.hk` in production via `SITE_URL`), so compare slugs, not hosts.
+  A Google News sitemap lives at `/news-sitemap.xml` (2026-11-17): the same
+  function as the regular sitemap (`?news=1` via the vercel.json rewrite),
+  only articles from the last 48 hours, with `<news:news>` (publication
+  港體育, language zh-tw); submit it in Search Console under the
+  www.hksports.hk property.
 - **Ingest in seed mode returns 503** (after auth): there is no database to
   write to, and staging must not pretend an insert succeeded. The 401
   (wrong/missing secret) and 400 (bad body) paths are testable on staging; the
