@@ -131,6 +131,39 @@ function fmtTime(iso){
     return new Intl.DateTimeFormat(LANG === "en" ? "en-HK" : (LANG === "zh_hans" ? "zh-CN" : "zh-HK"), o).format(d);
   } catch(e){ return (iso || "").slice(0, 16).replace("T", " "); }
 }
+// Relative time, computed in the browser from the reader's clock (never baked
+// into server HTML — a cached page would show a stale "2 hours ago").
+// Only for the last 24 hours; older articles show the absolute time alone.
+// A future timestamp (clock skew) clamps to "just now", never a future wording.
+const REL = {
+  en:      { now: "just now", min: "min ago", hour: "hour ago", hours: "hours ago" },
+  zh_hant: { now: "剛剛", min: "分鐘前", hour: "小時前", hours: "小時前" },
+  zh_hans: { now: "刚刚", min: "分钟前", hour: "小时前", hours: "小时前" },
+};
+function relTime(iso){
+  if (!iso) return "";
+  const ms = Date.now() - new Date(iso).getTime();
+  if (Number.isNaN(ms)) return "";
+  const r = REL[LANG] || REL.zh_hant;
+  if (ms < 60000) return r.now;
+  const mins = Math.floor(ms / 60000);
+  if (mins < 60) return mins + " " + r.min;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + " " + (hrs === 1 ? r.hour : r.hours);
+  return "";
+}
+function fmtTimeRel(iso){
+  const base = fmtTime(iso), rel = relTime(iso);
+  return rel ? base + " · " + rel : base;
+}
+// Re-render only the timestamps (not the whole list) as they age, and after
+// a language switch render() rebuilds them anyway. Started once in init.
+function refreshTimes(){
+  document.querySelectorAll(".pub-time").forEach(el => {
+    const ts = el.getAttribute("data-ts");
+    if (ts) el.textContent = fmtTimeRel(ts);
+  });
+}
 function fmtDate(ds){
   const [y, m, d] = ds.split("-");
   return LANG === "en" ? `${d}/${m}` : `${m}月${d}日`;
@@ -170,7 +203,7 @@ function cardHTML(a){
   return `<article class="card" id="a-${esc(a.id)}">
     ${img}
     <div class="card-body">
-      <div class="card-top"><span class="sport-tag">${esc((SPORTS[a.sport]||SPORTS.others)[LANG])}</span><span>${esc(fmtTime(a.published_at))}</span></div>
+      <div class="card-top"><span class="sport-tag">${esc((SPORTS[a.sport]||SPORTS.others)[LANG])}</span><span class="pub-time" data-ts="${esc(a.published_at)}">${esc(fmtTimeRel(a.published_at))}</span></div>
       <h2 class="card-title"><a href="a/${esc(a.id)}.html">${esc(a.title[LANG] || a.title.zh_hant)}</a></h2>
       <p class="card-summary">${esc(a.summary[LANG] || a.summary.zh_hant)}</p>
       <div class="tags">${tags}</div>
@@ -192,7 +225,7 @@ function render(){
   const list = ALL;
   $("#cards").innerHTML = list.map(cardHTML).join("");
   $("#empty").hidden = list.length > 0;
-  $("#meta").textContent = `${TOTAL} ${t("articles")}` + (UPDATED_AT ? ` · ${t("updated")} ${fmtTime(UPDATED_AT)}` : "");
+  $("#meta").innerHTML = `${TOTAL} ${esc(t("articles"))}` + (UPDATED_AT ? ` · ${esc(t("updated"))} <span class="pub-time" data-ts="${esc(UPDATED_AT)}">${esc(fmtTimeRel(UPDATED_AT))}</span>` : "");
   $("#loadMore").hidden = !(PAGE < PAGES);
   $("#loadMore").textContent = t("loadMore");
   document.querySelectorAll("[data-share]").forEach(b => b.addEventListener("click", ev => { ev.stopPropagation(); openShare(b.dataset.id); }));
@@ -323,6 +356,9 @@ $("#loadMore").addEventListener("click", loadNext);
     await loadPage(1);
   } catch(e){ /* offline / empty */ }
   renderChips(); render();
+  // Refresh the relative times ("2 hours ago") as they age; the absolute
+  // times never change, so only the .pub-time spans need updating.
+  setInterval(refreshTimes, 60 * 1000);
   if ("IntersectionObserver" in window) {
     const io = new IntersectionObserver((entries) => {
       if (entries.some(e => e.isIntersecting)) loadNext();

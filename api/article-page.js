@@ -50,11 +50,15 @@ function bodyParasOf(b) {
 // published_at is an instant (Supabase renders timestamptz as UTC, seed rows
 // carry +08:00); display it as Hong Kong wall time, not the raw UTC string
 // (an early-morning HKT article otherwise shows the previous day).
-function fmtDateTime(iso) {
+// Full publish date for the article page, Traditional Chinese by default;
+// the client script re-renders it for the other two languages (see LANG_SCRIPT).
+function fmtFullDateHant(iso) {
   const d = new Date(iso || "");
   if (Number.isNaN(d.getTime())) return (iso || "").slice(0, 16).replace("T", " ");
   // Hong Kong is UTC+8 all year (no DST): shift the instant, then read UTC parts.
-  return new Date(d.getTime() + 8 * 3600 * 1000).toISOString().slice(0, 16).replace("T", " ");
+  const h = new Date(d.getTime() + 8 * 3600 * 1000);
+  const p = (n) => String(n).padStart(2, "0");
+  return `${h.getUTCFullYear()}年${h.getUTCMonth() + 1}月${h.getUTCDate()}日 ${p(h.getUTCHours())}:${p(h.getUTCMinutes())}（香港時間）`;
 }
 
 // Inline script from the live article pages, with one change: it fetches
@@ -67,6 +71,29 @@ const LANG_SCRIPT = `
   var SHARE_COPY=${JSON.stringify(SHARE_COPY)};
   var SHARE_COPIED=${JSON.stringify(SHARE_COPIED)};
   var SHARE_WECHAT_HINT=${JSON.stringify(SHARE_WECHAT_HINT)};
+  // Relative time + full publish date, all three languages. Same rules as
+  // the list page (assets/app.js): relative only for the last 24 hours,
+  // computed in the browser and refreshed every minute — never baked into
+  // server HTML (the page is cached 60s, a baked "2 hours ago" would go
+  // stale). A future timestamp clamps to "just now", never a future wording.
+  var REL={en:{now:'just now',min:'min ago',hour:'hour ago',hours:'hours ago',hkt:'HKT'},zh_hant:{now:'剛剛',min:'分鐘前',hour:'小時前',hours:'小時前',hkt:'香港時間'},zh_hans:{now:'刚刚',min:'分钟前',hour:'小时前',hours:'小时前',hkt:'香港时间'}};
+  function relTime(iso){ if(!iso) return ''; var ms=Date.now()-new Date(iso).getTime(); if(isNaN(ms)) return ''; var r=REL[LANG]||REL.zh_hant; if(ms<60000) return r.now; var mins=Math.floor(ms/60000); if(mins<60) return mins+' '+r.min; var hrs=Math.floor(mins/60); if(hrs<24) return hrs+' '+(hrs===1?r.hour:r.hours); return ''; }
+  function fmtFullDate(iso){
+    var d=new Date(iso||''); if(isNaN(d.getTime())) return (iso||'').slice(0,16).replace('T',' ');
+    var h=new Date(d.getTime()+8*3600*1000);
+    var p=function(n){ return (n<10?'0':'')+n; };
+    var y=h.getUTCFullYear(), mo=h.getUTCMonth()+1, da=h.getUTCDate(), hh=p(h.getUTCHours()), mm=p(h.getUTCMinutes());
+    var r=REL[LANG]||REL.zh_hant;
+    if(LANG==='en'){ var MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return da+' '+MON[mo-1]+' '+y+', '+hh+':'+mm+' ('+r.hkt+')'; }
+    return y+'年'+mo+'月'+da+'日 '+hh+':'+mm+'（'+r.hkt+'）';
+  }
+  function updatePubDate(){
+    var el=document.getElementById('pubDate'); if(!el) return;
+    var ts=el.getAttribute('data-ts'); if(!ts) return;
+    var rel=relTime(ts);
+    el.textContent=fmtFullDate(ts)+(rel?' · '+rel:'');
+  }
+  setInterval(updatePubDate,60000);
   function esc(s){return String(s).replace(/[&<>\"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}[c];});}
   function setLogo(){var dark=document.documentElement.getAttribute('data-theme')==='dark';var bn=document.getElementById('brandName');if(bn&&bn.style.display==='flex')return;var l=document.getElementById('logoLight'),d=document.getElementById('logoDark');if(l&&d){l.style.display=dark?'none':'';d.style.display=dark?'':'none';}}
   var LANG='zh_hant';
@@ -79,6 +106,7 @@ const LANG_SCRIPT = `
   }
   function apply(a){
     setActive();
+    updatePubDate();
     document.documentElement.lang = LANG==='en'?'en':(LANG==='zh_hans'?'zh-CN':'zh-Hant');
     var sb=document.getElementById('shareBtn');
     if(sb) sb.textContent=SHARE_BTN[LANG]||SHARE_BTN.zh_hant;
@@ -192,7 +220,7 @@ const LANG_SCRIPT = `
     if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(u).then(done,function(){ fallbackCopy(u); }); }
     else fallbackCopy(u);
   });
-  setIcon(); setActive(); setLogo();
+  setIcon(); setActive(); setLogo(); updatePubDate();
   fetch('/api/article?slug='+encodeURIComponent(aid)).then(function(r){ if(!r.ok) throw 0; return r.json(); }).then(function(j){
     window.__ADATA=j.article||null; apply(window.__ADATA);
   }).catch(function(){});
@@ -304,7 +332,7 @@ function logoFallback(){var b=document.getElementById("brandName");if(b)b.style.
 </header>
 <main class="article-wrap">
 ${img}
-${caption}  <div class="card-top"><span class="sport-tag">${esc(a.sport)}</span><span>${esc(fmtDateTime(a.published_at))}</span><span> · ${srcName}</span></div>
+${caption}  <div class="card-top"><span class="sport-tag">${esc(a.sport)}</span><span id="pubDate" data-ts="${esc(a.published_at)}">${esc(fmtFullDateHant(a.published_at))}</span><span> · ${srcName}</span></div>
   <h1 class="article-title">${esc(zhTitle)}</h1>
   <p class="lead article-summary">${esc(zhSummary)}</p>
 ${bodyHtml}${extrasHtml}  <div class="tags article-tags">${tags}</div>
