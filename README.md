@@ -304,6 +304,11 @@ captions).
   source name are still hardcoded Traditional on this site). The homepage
   list uses the same treatment: one ⤴ button per card, one shared panel for
   the whole list. All client-side (no new function — the app has 11).
+  Every article page also declares a canonical link to its www.hksports.hk
+  URL (2026-11-17): the same article is served from apex and www, and with no
+  declared canonical Google picked the apex version — 21 www pages were listed
+  as duplicates in Search Console. The homepage (`index.html`) declares the
+  same for its own URL.
 - **Sitemap/RSS** use the request host (staging host on staging,
   `hksports.hk` in production via `SITE_URL`), so compare slugs, not hosts.
 - **Ingest in seed mode returns 503** (after auth): there is no database to

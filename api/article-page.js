@@ -30,6 +30,13 @@ const SHARE_COPY = { en: "Copy link", zh_hant: "複製連結", zh_hans: "复制�
 const SHARE_COPIED = { en: "Copied", zh_hant: "已複製", zh_hans: "已复制" };
 const SHARE_WECHAT_HINT = { en: "Scan with WeChat to share", zh_hant: "用微信掃一掃分享", zh_hans: "用微信扫一扫分享" };
 
+// Canonical URL: always the primary www host. The same article is served
+// from both apex and www (siteUrl follows the request host), and with no
+// declared canonical Google picks one itself — 2026-11-17 Search Console:
+// 21 sports www pages listed as duplicates because Google chose the apex
+// version. A fixed www canonical stops that.
+const CANONICAL_BASE = "https://www.hksports.hk";
+
 // Body text is stored as {en, zh_hant, zh_hans} strings, paragraphs
 // separated by a blank line (same shape as the static data/*.json body).
 // Accept an array of paragraphs too, for robustness.
@@ -210,6 +217,7 @@ function pageHTML(a, base) {
   const desc = shortDesc(zhSummary);
   const tags = (a.tags.zh_hant || []).map((g) => `<button class="tag">#${esc(g)}</button>`).join("");
   const url = `${base}/a/${a.id}.html`;
+  const canonicalUrl = CANONICAL_BASE + "/a/" + a.id + ".html";
   // Sports rule: no image => NO hero div at all (verified on the live site:
   // imageless article pages contain no article-hero and no noimg).
   const img = a.image_url
@@ -254,6 +262,7 @@ function pageHTML(a, base) {
 <meta property="og:title" content="${esc(zhTitle)}">
 <meta property="og:description" content="${esc(desc)}">
 ${ogImage}<meta property="og:url" content="${esc(url)}">
+<link rel="canonical" href="${esc(canonicalUrl)}">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="../assets/favicon.png">
 <link rel="stylesheet" href="../assets/style.css">
