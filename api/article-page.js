@@ -239,10 +239,23 @@ function shortDesc(s) {
   return cut + "…";
 }
 
+// X/Twitter share teaser: only a few dozen characters, so X cannot pull the
+// long og:description into the post text. Cut at a sentence boundary when one
+// falls in range, else ellipsis.
+function shortTeaser(s) {
+  const t = (s || "").replace(/\s+/g, " ").trim();
+  if (t.length <= 80) return t;
+  const cut = t.slice(0, 80);
+  const idx = Math.max(cut.lastIndexOf("。"), cut.lastIndexOf("！"), cut.lastIndexOf("？"));
+  if (idx >= 30) return cut.slice(0, idx + 1);
+  return cut + "…";
+}
+
 function pageHTML(a, base) {
   const zhTitle = a.title.zh_hant || a.title.en || "";
   const zhSummary = a.summary.zh_hant || a.summary.en || "";
   const desc = shortDesc(zhSummary);
+  const twDesc = shortTeaser(zhSummary);
   const tags = (a.tags.zh_hant || []).map((g) => `<button class="tag">#${esc(g)}</button>`).join("");
   const url = `${base}/a/${a.id}.html`;
   const canonicalUrl = CANONICAL_BASE + "/a/" + a.id + ".html";
@@ -292,6 +305,7 @@ function pageHTML(a, base) {
 ${ogImage}<meta property="og:url" content="${esc(url)}">
 <link rel="canonical" href="${esc(canonicalUrl)}">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:description" content="${esc(twDesc)}">
 <link rel="icon" href="../assets/favicon.png">
 <link rel="stylesheet" href="../assets/style.css">
 <style>
