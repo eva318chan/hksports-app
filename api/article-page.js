@@ -273,7 +273,7 @@ function pageHTML(a, base) {
       ? `<p style="font-size:13px;color:#888;margin:8px 0 0">${esc(e.caption)}</p>` : "";
     return `<div class="article-hero" style="margin-top:16px"><img src="${u}" alt="" referrerpolicy="no-referrer" onerror="this.closest('.article-hero').remove()"></div>${cap}`;
   }).join("\n");
-  const ogImage = a.image_url ? `<meta property="og:image" content="${esc(a.image_url)}">\n` : "";
+  const ogImage = `<meta property="og:image" content="${esc(a.image_url || "https://www.hksports.hk/assets/logo-dark.jpg")}">\n`;
   const footer = esc(a.footer_note || STANDARD_FOOTER);
   // Sports source is a plain string; source_url is a separate field.
   const srcName = esc(typeof a.source === "string" ? a.source : (a.source?.name || ""));
