@@ -699,7 +699,12 @@ async function autoSubmit() {
   if (!candidates.length) return { ok: true, submitted: 0, batch: null, cost_usd: 0, note: "no articles need images" };
   const pending = await sbRows("sports_image_batch_items?select=article_slug&status=in.(submitted,generated)&limit=1000");
   const pendingSlugs = new Set(pending.map((p) => p.article_slug));
-  let slugs = candidates.filter((s) => !pendingSlugs.has(s));
+  // Eyeball gate (2026-11-23): an article whose generated image was rejected
+  // is NOT regenerated automatically (same prompt, same defect, more spend) —
+  // it is fixed by hand (real photo first) or by a manual Generate.
+  const rejected = await sbRows("sports_image_batch_items?select=article_slug&status=eq.rejected&limit=1000");
+  const rejectedSlugs = new Set(rejected.map((p) => p.article_slug));
+  let slugs = candidates.filter((s) => !pendingSlugs.has(s) && !rejectedSlugs.has(s));
   // Retry cap (see MAX_AUTO_ATTEMPTS): skip any article that already has
   // 3 failed items — it has had its 1 attempt + 2 automatic retries and is
   // parked. Failed items are counted whether they came from auto batches
@@ -770,7 +775,11 @@ async function autoSubmit() {
 // counted as skipped, not as a failure of the run.
 // Two overlapping polls are safe: checkBatch writes the same correct bytes
 // per key, and approveItems refuses any item that is no longer "generated".
-async function autoPoll() {
+async function autoPoll(body) {
+  // Eyeball gate (owner decision 2026-11-23): generated images are HELD in
+  // staging unless the caller passes approve:true. The pipeline views each
+  // staging image, then calls auto-approve / auto-reject per item.
+  const doApprove = !!(body && body.approve === true);
   const pending = await sbRows(`sports_image_batches?select=id&created_by=eq.${AUTO_ACTOR}&status=in.(pending,running,submitted)&order=created_at.asc&limit=50`);
   const genItems = await sbRows("sports_image_batch_items?select=batch_id,sports_image_batches(created_by)&status=eq.generated&limit=1000");
   const ids = new Set(pending.map((b) => b.id));
@@ -787,7 +796,7 @@ async function autoPoll() {
       const gen = items.filter((i) => i.status === "generated");
       const failed = items.filter((i) => i.status === "failed").length;
       let approved = 0, skipped = 0;
-      if (gen.length) {
+      if (gen.length && doApprove) {
         const appr = await approveItems({ itemIds: gen.map((i) => i.id) });
         for (const r of appr.results || []) {
           if (r.status === "approved") approved++;
@@ -801,6 +810,7 @@ async function autoPoll() {
         model: (checked.batch && checked.batch.model) || null,
         state: (checked.batch && checked.batch.status) || null,
         generated: gen.length, approved, failed, skipped,
+        pending_review: doApprove ? [] : gen.map((i) => ({ id: i.id, article_slug: i.article_slug, staging_url: i.staging_url })),
       });
     } catch (e) {
       batchResults.push({
@@ -813,8 +823,40 @@ async function autoPoll() {
   return {
     ok: true, checked: ids.size, approved: approvedTotal,
     failed: failedTotal, skipped: skippedTotal, batches: batchResults,
-    note: `checked ${ids.size} auto batch(es), approved ${approvedTotal} image(s), ${failedTotal} failed`,
+    held_for_review: !doApprove,
+    note: doApprove
+      ? `checked ${ids.size} auto batch(es), approved ${approvedTotal} image(s), ${failedTotal} failed`
+      : `checked ${ids.size} auto batch(es), images held in staging for eyeball review (auto-approve / auto-reject per item), ${failedTotal} failed`,
   };
+}
+
+// Eyeball gate (owner decision 2026-11-23): after auto-poll holds images in
+// staging, the pipeline looks at each one and calls auto-approve or
+// auto-reject with the item ids. INGEST_SECRET auth, AUTO batches only — a
+// manual batch item is refused here and stays with the admin page.
+async function autoReview(body, approve) {
+  const ids = Array.isArray(body.itemIds)
+    ? [...new Set(body.itemIds.map((x) => String(x).trim()).filter(Boolean))] : [];
+  if (!ids.length) throw err(400, "missing itemIds");
+  const reason = String(body.reason || "").trim().slice(0, 300);
+  const results = [];
+  for (const id of ids) {
+    try {
+      const rows = await sbRows(`sports_image_batch_items?select=id,article_slug,status,sports_image_batches(created_by)&id=eq.${encodeURIComponent(id)}&limit=1`);
+      const it = rows[0];
+      if (!it) throw new Error("item not found");
+      if (!it.sports_image_batches || it.sports_image_batches.created_by !== AUTO_ACTOR) throw new Error("item is not in an auto batch");
+      const out = approve ? await approveItems({ itemIds: [id] }) : await rejectItems({ itemIds: [id] });
+      const r = (out.results || [])[0] || { id, status: "error", error: "no result" };
+      if (!approve && r.status === "rejected") {
+        await sbFetch(`sports_image_batch_items?id=eq.${encodeURIComponent(id)}`, { method: "PATCH", body: { error: (`eyeball gate: ${reason || "rejected"}`).slice(0, 500) } });
+      }
+      results.push(r);
+    } catch (e) {
+      results.push({ id, article_slug: null, status: "error", error: String(e.message || e).slice(0, 200) });
+    }
+  }
+  return { ok: true, results };
 }
 
 async function rejectItems(body) {
@@ -1075,7 +1117,7 @@ function logLine({ actor, action, batchId, detail, ok, error }) {
   } catch (e) { /* logging must never break the action */ }
 }
 
-const DB_LOGGED_ACTIONS = new Set(["create", "check", "approve", "reject", "auto-submit", "auto-poll", "credit-topup-add"]);
+const DB_LOGGED_ACTIONS = new Set(["create", "check", "approve", "reject", "auto-submit", "auto-poll", "auto-approve", "auto-reject", "credit-topup-add"]);
 
 async function logDb(entry) {
   if (!DB_LOGGED_ACTIONS.has(entry.action)) return;
@@ -1129,7 +1171,7 @@ function summarize(action, body, out) {
       if (fail.length) detail += `; failed: ${fail.join("; ")}`;
       return { batchId: String(body.batchId || ""), detail: detail.slice(0, 500) };
     }
-    if ((action === "approve" || action === "reject") && out && Array.isArray(out.results)) {
+    if (["approve", "reject", "auto-approve", "auto-reject"].includes(action) && out && Array.isArray(out.results)) {
       const done = out.results.filter((r) => r.status === "approved" || r.status === "rejected").length;
       const errs = out.results.filter((r) => r.status === "error").length;
       return { batchId: null, detail: `items=${out.results.length}, done=${done}, errors=${errs}` };
@@ -1186,7 +1228,7 @@ module.exports = async (req, res) => {
   // secret must never be able to run a manual action (approve / reject /
   // create / check on an arbitrary batch). Manual actions need the Google
   // SSO session, exactly as before.
-  if (auto && action !== "auto-submit" && action !== "auto-poll") {
+  if (auto && !["auto-submit", "auto-poll", "auto-approve", "auto-reject"].includes(action)) {
     res.status(401).json({ ok: false, error: "unauthorized: this action needs a Google admin session" });
     return;
   }
@@ -1209,7 +1251,11 @@ module.exports = async (req, res) => {
         out = await autoSubmit(); break;
       case "auto-poll":
         if (!auto) { res.status(401).json({ ok: false, error: "unauthorized: auto-poll needs x-ingest-secret" }); return; }
-        out = await autoPoll(); break;
+        out = await autoPoll(body); break;
+      case "auto-approve":
+      case "auto-reject":
+        if (!auto) { res.status(401).json({ ok: false, error: `unauthorized: ${action} needs x-ingest-secret` }); return; }
+        out = await autoReview(body, action === "auto-approve"); break;
       default:
         await logAction({ actor: email, action: action || "(none)", ok: false, error: "unknown action" });
         res.status(400).json({ ok: false, error: `unknown action: ${action || "(none)"} — use list-articles, create, check, approve, reject, list-batches, list-items, list-logs, stats, credit-summary, credit-topup-add, auto-submit or auto-poll` });

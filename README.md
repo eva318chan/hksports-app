@@ -420,3 +420,18 @@ not AI-generated:
   composition of the previous sports images: rotate stadium wide shot,
   equipment close-up, side-on action and backs. A lone ball at centre court or
   in the centre circle is banned as the default composition.
+
+## Eyeball gate before any generated image goes live (owner's decision, 2026-11-23)
+
+This replaces the 2026-11-12 "fully automatic, auto-approve, nobody looks" mode described elsewhere in this file.
+
+Why: readers see the image before they read the text, so a wrong or unlike image misleads them about the whole story. An image may be assembled or composited, but everything in it must be real. An image should also carry emotional impact, not just fill a slot.
+
+How it works (`POST /api/admin/batch`, `x-ingest-secret`):
+
+- `auto-poll` now HOLDS finished images in R2 staging and does not publish them. Each batch result lists `pending_review: [{ id, article_slug, staging_url }]`. Only an explicit `{ "action": "auto-poll", "approve": true }` restores the old auto-approve behaviour; the pipeline does not use it.
+- The pipeline downloads and looks at every `staging_url`, then calls `{ "action": "auto-approve", "itemIds": [...] }` for the good ones and `{ "action": "auto-reject", "itemIds": [...], "reason": "..." }` for the rest. Both work on items from auto batches only.
+- Reject when the image has stray or garbled text, a white patch, an invented shop sign, logo or building sign, a scene that does not resemble the stated location, a wrong, duplicated or covered title, a missing or misplaced label, or cannot be brought under 200KB.
+- A rejected image never goes live. The article stays published without an image until a fixed one is ready (real photo first; otherwise a text-free scene with the title composited by PIL).
+- `auto-submit` no longer resubmits an article whose image was rejected at the gate. Fix it by hand or with a manual Generate in the admin.
+- Failed items are still never approved, and the 3-attempt retry cap is unchanged.
