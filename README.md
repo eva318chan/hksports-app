@@ -361,3 +361,14 @@ INGEST_SECRET=test-secret node scripts/serve.mjs 3100
 | `supabase/migrations/002_extra_images.sql` | adds `extra_images` jsonb to `sports_articles` (multi-photo articles) |
 | `supabase/migrations/003_body.sql` | adds `body` jsonb to `sports_articles` (full article text) |
 | `vercel.json` | rewrites `/a/:slug.html`, `/sitemap.xml`, `/rss.xml`; functions region `sin1` |
+
+## 地點相鐵律：發生地點嘅圖一定要似返嗰個地方（2026-11-22 Eddie 指示）
+
+新聞涉及具體發生地點（某條街、某座樓、某個屋苑、某個區）嗰陣，配圖唔可以憑空創作一個同實地差太遠嘅場景——本地讀者一眼就認得出唔似。次序：
+
+1. **首選真實相**：嗰條路／嗰個位置本身，或者佢附近（政府新聞處、Wikimedia Commons CC、Unsplash／Pexels，註明出處；通訊社同版權黑名單照舊唔用）。
+2. **搵唔到就用外貌相近嘅真實位置**：同區、樓宇類型同街道格局差唔多嘅地方，圖說要寫明係邊度，唔可以扮係事發現場。
+3. **真係要用 AI 設計圖**：寫 prompt 之前先睇嗰個地點嘅真實相，將實地特徵寫入 prompt（街道闊窄、樓宇類型同高度、招牌、欄杆、山／海／天橋等背景、標誌性顏色）；生出嚟要同真實相對一次，唔似樣就重做或者唔用。照舊要有「AI設計圖片」標籤，唔可以扮真實新聞相。
+4. 地點唔明確（冇講明邊度）先至用 SOP 嗰套去地域化通用背景。
+
+唔肯定個地方係點樣就唔好估——寧缺勿錯。
