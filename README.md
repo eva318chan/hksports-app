@@ -373,10 +373,27 @@ INGEST_SECRET=test-secret node scripts/serve.mjs 3100
 
 唔肯定個地方係點樣就唔好估——寧缺勿錯。
 
-## Matchup covers (2026-11-23, owner's decision)
+## Sports cover images: real photo first, logo matchup cover as fallback (2026-11-23, owner's decision)
 
-For head-to-head match reports the first-choice cover is a **matchup design
-cover** composed with PIL, not an AI-generated image.
+Order for every sports article image (set by the owner on 2026-11-23 03:11; it
+replaces the earlier same-day "matchup cover first" wording):
+
+1. **A real photo from the event itself.** Club, league or association
+   official photos, Wikimedia Commons CC, or photos supplied by the owner. If
+   one exists it is used and no logo cover is made.
+2. **An older real file photo of the same kind**: the team in its kit, the
+   venue, or a player headshot. It must show the right team, the right person
+   and the right venue, be captioned 「資料圖片」 with its source, and never
+   be passed off as a photo of this match.
+3. **The logo matchup cover**, only when neither of the above exists: both
+   teams' real logos with a big headline and big score.
+
+Copyright rules are unchanged at every step. Every article needs its own
+different design: no single template is repeated across articles, including
+logo covers, so the homepage never becomes a row of identical covers.
+
+When the fallback **matchup design cover** is used, it is composed with PIL,
+not AI-generated:
 
 - Built by the pipeline script `sports-test/matchup_cover.py` from both teams'
   verified real logos (logo library `sports-test/team-logos/<league>/`, with
