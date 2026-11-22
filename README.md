@@ -372,3 +372,34 @@ INGEST_SECRET=test-secret node scripts/serve.mjs 3100
 4. 地點唔明確（冇講明邊度）先至用 SOP 嗰套去地域化通用背景。
 
 唔肯定個地方係點樣就唔好估——寧缺勿錯。
+
+## Matchup covers (2026-11-23, owner's decision)
+
+For head-to-head match reports the first-choice cover is a **matchup design
+cover** composed with PIL, not an AI-generated image.
+
+- Built by the pipeline script `sports-test/matchup_cover.py` from both teams'
+  verified real logos (logo library `sports-test/team-logos/<league>/`, with
+  provenance in `sources.json`). A new logo must come from the club/league
+  official site or Wikimedia Commons and be checked by eye as the club's
+  current crest before it is added. If either logo cannot be verified, the
+  article falls back to the AI design route. Crests are never drawn by AI, and
+  third-party official matchup graphics are never reused.
+- Layout: bright background with faint logo watermarks, competition name as
+  text at the top, zh_hant team names above the logos, winner on the left,
+  score under each logo, the article's own zh_hant title in two lines.
+- Label on the image: 「設計圖片」 (not 「AI設計圖片」, since nothing is
+  AI-generated). Caption: 「設計圖片：球隊標誌屬各球會所有。」
+- JPEG under 200KB, uploaded under a new R2 key
+  `design/YYYYMM/<id>-matchup.jpg`; `image_url`, `image_r2_key` and
+  `image_caption` are ingested as usual.
+- A context line (region/group) appears only if the article states it.
+- Background colour and pattern vary from one article to the next.
+- An official club photo (credited, no agency watermark) may be combined with
+  the logos as a hybrid cover; the caption then also carries the photo credit.
+- Matchup covers have no `image_prompt` and must not go through the admin
+  batch `auto-submit`.
+- Non-match stories that use the AI design route must not repeat the
+  composition of the previous sports images: rotate stadium wide shot,
+  equipment close-up, side-on action and backs. A lone ball at centre court or
+  in the centre circle is banned as the default composition.
