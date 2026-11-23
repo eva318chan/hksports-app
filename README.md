@@ -435,3 +435,14 @@ How it works (`POST /api/admin/batch`, `x-ingest-secret`):
 - A rejected image never goes live. The article stays published without an image until a fixed one is ready (real photo first; otherwise a text-free scene with the title composited by PIL).
 - `auto-submit` no longer resubmits an article whose image was rejected at the gate. Fix it by hand or with a manual Generate in the admin.
 - Failed items are still never approved, and the 3-attempt retry cap is unchanged.
+
+## Article page meta line (owner decision, 2026-11-23)
+
+- Same as the news app: the meta line under the cover shows only the sport tag
+  and the publication time. The source name is no longer printed there; the
+  "閱讀原文" button below still links to the source, and the source is still
+  stored on every article.
+- The sport tag shows the proper label (e.g. 足球, 賽車), not the raw key
+  (`football`, `motorsport`), and follows the language switch (繁／简／EN).
+  Labels come from `SPORT_LABELS` in `api/article-page.js`, kept in step with
+  `SPORTS` in `assets/app.js`.

@@ -15,6 +15,8 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
 }[c]));
 
+// Full sport label map (kept in step with assets/app.js SPORTS) for the article-page tag, 3 languages.
+const SPORT_LABELS = {"football": {"en": "Football", "zh_hant": "足球", "zh_hans": "足球"}, "basketball": {"en": "Basketball", "zh_hant": "籃球", "zh_hans": "篮球"}, "badminton": {"en": "Badminton", "zh_hant": "羽毛球", "zh_hans": "羽毛球"}, "table_tennis": {"en": "Table Tennis", "zh_hant": "乒乓球", "zh_hans": "乒乓球"}, "tennis": {"en": "Tennis", "zh_hant": "網球", "zh_hans": "网球"}, "athletics": {"en": "Athletics", "zh_hant": "田徑", "zh_hans": "田径"}, "swimming": {"en": "Swimming", "zh_hant": "游泳", "zh_hans": "游泳"}, "volleyball": {"en": "Volleyball", "zh_hant": "排球", "zh_hans": "排球"}, "cycling": {"en": "Cycling", "zh_hant": "單車", "zh_hans": "单车"}, "rugby": {"en": "Rugby", "zh_hant": "欖球", "zh_hans": "榄球"}, "golf": {"en": "Golf", "zh_hant": "高爾夫球", "zh_hans": "高尔夫球"}, "fencing": {"en": "Fencing", "zh_hant": "劍擊", "zh_hans": "剑击"}, "snooker": {"en": "Snooker", "zh_hant": "桌球", "zh_hans": "台球"}, "boxing_mma": {"en": "Boxing / MMA", "zh_hant": "拳擊／綜合格鬥", "zh_hans": "拳击／综合格斗"}, "esports": {"en": "Esports", "zh_hant": "電競", "zh_hans": "电竞"}, "racing": {"en": "Racing", "zh_hant": "賽車／賽馬", "zh_hans": "赛车／赛马"}, "cricket": {"en": "Cricket", "zh_hant": "板球", "zh_hans": "板球"}, "handball": {"en": "Handball", "zh_hant": "手球", "zh_hans": "手球"}, "f1": {"en": "Formula 1", "zh_hant": "一級方程式", "zh_hans": "一级方程式"}, "motorsport": {"en": "Motorsport", "zh_hant": "賽車運動", "zh_hans": "赛车运动"}, "baseball": {"en": "Baseball", "zh_hant": "棒球", "zh_hans": "棒球"}, "bowling": {"en": "Bowling", "zh_hant": "保齡球", "zh_hans": "保龄球"}, "others": {"en": "Others", "zh_hant": "其他", "zh_hans": "其他"}};
 const SPORTS_ZH = {football:"足球",basketball:"籃球",badminton:"羽毛球",table_tennis:"乒乓球",tennis:"網球",athletics:"田徑",swimming:"游泳",volleyball:"排球",cycling:"單車",rugby:"欖球",golf:"高爾夫球",fencing:"劍擊",snooker:"桌球",others:"體育"};
 
 const STANDARD_FOOTER = "摘要由本站重新編寫，圖片版權歸原新聞機構所有。";
@@ -116,6 +118,12 @@ const LANG_SCRIPT = `
     if(sc&&sc.getAttribute('data-copied')!=='1') sc.textContent=SHARE_COPY[LANG]||SHARE_COPY.zh_hant;
     var swh=document.getElementById('shareWechatHint');
     if(swh) swh.textContent=SHARE_WECHAT_HINT[LANG]||SHARE_WECHAT_HINT.zh_hant;
+    var st=document.getElementById('sportTag');
+    if(st){
+      var SL=${JSON.stringify(SPORT_LABELS)};
+      var sk=SL[st.getAttribute('data-sport')];
+      if(sk) st.textContent=sk[LANG]||sk.zh_hant;
+    }
     if(!a) return;
     var h1=document.querySelector('h1.article-title');
     var lead=document.querySelector('p.article-summary');
@@ -346,7 +354,7 @@ function logoFallback(){var b=document.getElementById("brandName");if(b)b.style.
 </header>
 <main class="article-wrap">
 ${img}
-${caption}  <div class="card-top"><span class="sport-tag">${esc(a.sport)}</span><span id="pubDate" data-ts="${esc(a.published_at)}">${esc(fmtFullDateHant(a.published_at))}</span><span> · ${srcName}</span></div>
+${caption}  <div class="card-top"><span class="sport-tag" id="sportTag" data-sport="${esc(a.sport)}">${esc((SPORT_LABELS[a.sport] && SPORT_LABELS[a.sport].zh_hant) || SPORTS_ZH[a.sport] || a.sport)}</span><span id="pubDate" data-ts="${esc(a.published_at)}">${esc(fmtFullDateHant(a.published_at))}</span></div>
   <h1 class="article-title">${esc(zhTitle)}</h1>
   <p class="lead article-summary">${esc(zhSummary)}</p>
 ${bodyHtml}${extrasHtml}  <div class="tags article-tags">${tags}</div>
