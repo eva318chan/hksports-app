@@ -683,6 +683,33 @@ async function approveItems(body) {
 // A concurrent state change (an article gaining an image between the
 // filter and the create) makes createBatch reject the whole selection;
 // in that case the bad slugs are dropped and the rest is retried once.
+// Redo through batch (owner decision 2026-11-24): a rejected image is redone
+// at batch price, never by a direct full-price call. The pipeline first
+// ingests a corrected image_prompt (and leaves image_url empty), then calls
+// auto-resubmit { slugs }. This bypasses the "rejected is never
+// auto-resubmitted" rule of auto-submit for the named slugs only. Cap: an
+// article with 2 rejected items is refused (1 attempt + 1 redo, then it
+// stays imageless). createBatch still validates prompt present / no image.
+async function autoResubmit(body) {
+  const slugs = [...new Set((Array.isArray(body && body.slugs) ? body.slugs : []).map((x) => String(x || "").trim()).filter(Boolean))];
+  if (!slugs.length) throw err(400, "auto-resubmit needs { slugs: [...] }");
+  if (slugs.length > 30) throw err(400, "auto-resubmit: at most 30 slugs per call");
+  const inList = slugs.map(encodeURIComponent).join(",");
+  const items = await sbRows(`image_batch_items?select=article_slug,status&article_slug=in.(${inList})&limit=1000`);
+  const rej = new Map(); const pending = new Set();
+  for (const it of items || []) {
+    if (it.status === "rejected") rej.set(it.article_slug, (rej.get(it.article_slug) || 0) + 1);
+    if (it.status === "submitted" || it.status === "generated") pending.add(it.article_slug);
+  }
+  const capped = slugs.filter((x) => (rej.get(x) || 0) >= 2);
+  const skippedPending = slugs.filter((x) => pending.has(x));
+  const go = slugs.filter((x) => !capped.includes(x) && !pending.has(x));
+  if (!go.length) return { ok: true, submitted: 0, redo_capped: capped, already_pending: skippedPending, note: "nothing to resubmit" };
+  const out = await createBatch({ slugs: go, model: AUTO_MODEL }, AUTO_ACTOR);
+  return { ...out, ok: true, submitted: go.length, slugs: go, redo_capped: capped, already_pending: skippedPending, model: AUTO_MODEL,
+    note: `resubmitted ${go.length} article(s) to Gemini batch (${AUTO_MODEL})` };
+}
+
 async function autoSubmit() {
   const params = new URLSearchParams();
   params.set("select", "slug,image_url,image_prompt");
@@ -1117,7 +1144,7 @@ function logLine({ actor, action, batchId, detail, ok, error }) {
   } catch (e) { /* logging must never break the action */ }
 }
 
-const DB_LOGGED_ACTIONS = new Set(["create", "check", "approve", "reject", "auto-submit", "auto-poll", "auto-approve", "auto-reject", "credit-topup-add"]);
+const DB_LOGGED_ACTIONS = new Set(["create", "check", "approve", "reject", "auto-submit", "auto-resubmit", "auto-poll", "auto-approve", "auto-reject", "credit-topup-add"]);
 
 async function logDb(entry) {
   if (!DB_LOGGED_ACTIONS.has(entry.action)) return;
@@ -1145,7 +1172,7 @@ function summarize(action, body, out) {
     if (action === "create" && out && out.batch) {
       return { batchId: out.gemini_batch_name || out.batch.id, detail: `model=${out.batch.model}, articles=${out.batch.article_count}` };
     }
-    if (action === "auto-submit" && out) {
+    if ((action === "auto-submit" || action === "auto-resubmit") && out) {
       // The retry cap must be visible in the log, not silent: a parked
       // article stops being retried, and the log is where the user sees why.
       // The slugs are already in out.note; only the count is appended here
@@ -1228,7 +1255,7 @@ module.exports = async (req, res) => {
   // secret must never be able to run a manual action (approve / reject /
   // create / check on an arbitrary batch). Manual actions need the Google
   // SSO session, exactly as before.
-  if (auto && !["auto-submit", "auto-poll", "auto-approve", "auto-reject"].includes(action)) {
+  if (auto && !["auto-submit", "auto-resubmit", "auto-poll", "auto-approve", "auto-reject"].includes(action)) {
     res.status(401).json({ ok: false, error: "unauthorized: this action needs a Google admin session" });
     return;
   }
@@ -1249,6 +1276,9 @@ module.exports = async (req, res) => {
       case "auto-submit":
         if (!auto) { res.status(401).json({ ok: false, error: "unauthorized: auto-submit needs x-ingest-secret" }); return; }
         out = await autoSubmit(); break;
+      case "auto-resubmit":
+        if (!auto) { res.status(401).json({ ok: false, error: "unauthorized: auto-resubmit needs x-ingest-secret" }); return; }
+        out = await autoResubmit(body); break;
       case "auto-poll":
         if (!auto) { res.status(401).json({ ok: false, error: "unauthorized: auto-poll needs x-ingest-secret" }); return; }
         out = await autoPoll(body); break;
