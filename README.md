@@ -450,3 +450,7 @@ How it works (`POST /api/admin/batch`, `x-ingest-secret`):
 ## Batch 重做圖片：auto-resubmit（2026-11-24）
 
 驗圖唔過關嘅圖一律經 batch（半價）重做，唔直接正價生。做法：先 ingest 改好嘅 `image_prompt`（`image_url` 留空），再 POST `/api/admin/batch` `{ "action": "auto-resubmit", "slugs": [...] }`（`x-ingest-secret`）。每篇最多重做 1 次（已有 2 個 rejected 項目就拒絕，篇文維持無圖）。之後照常 `auto-poll` → 親眼驗 → `auto-approve`／`auto-reject`。代價係冇即時圖，要等下一輪。
+
+## Share preview text is short (owner decision, 2026-11-24)
+
+`og:description` now uses the same short teaser (~80 chars) as `twitter:description`, so WhatsApp / Facebook / X share previews show a few dozen characters plus the link, never a long chunk of the article. `<meta name="description">` keeps the 280-char excerpt for search engines. The article page itself still shows the full text.
