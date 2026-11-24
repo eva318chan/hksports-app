@@ -306,7 +306,7 @@ function openShare(id){
   const title = a.title[LANG] || a.title.zh_hant;
   const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || "");
   if (isMobile && navigator.share) {
-    navigator.share({title, text:(a.summary[LANG]||a.summary.zh_hant), url}).catch(()=>{});
+    navigator.share({title, text:title, url}).catch(()=>{});
     return;
   }
   sharePanelArticle = a; sharePanelUrl = url;
