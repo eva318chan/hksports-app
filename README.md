@@ -456,3 +456,4 @@ How it works (`POST /api/admin/batch`, `x-ingest-secret`):
 `og:description` now uses the same short teaser (~80 chars) as `twitter:description`, so WhatsApp / Facebook / X share previews show a few dozen characters plus the link, never a long chunk of the article. `<meta name="description">` keeps the 280-char excerpt for search engines. The article page itself still shows the full text.
 
 - 2026-11-25：首頁／列表「分享」掣（手機系統分享）之前將成篇摘要當分享文字送出，WhatsApp 等會成篇貼出；已改為只送標題＋連結（`assets/app.js` openShare）。分享規矩：只可短 teaser＋link，絕對唔送全文。
+- 2026-11-25：列表縮圖同文章頁主圖裁切位由置中改為 `object-position:center 25%`（直度相置中裁會 cut 走主角個頭）。
